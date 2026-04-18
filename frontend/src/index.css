@@ -799,6 +799,16 @@ body {
   .toast-container { bottom: 1.5rem; }
 }
 
+/* ── KEYBOARD OPEN (iOS) ─────────────── */
+/* When the virtual keyboard is open, hide the bottom nav so it doesn't
+   float awkwardly above the keyboard, and reduce page bottom padding */
+.keyboard-open .bottom-nav {
+  display: none !important;
+}
+.keyboard-open .page {
+  padding-bottom: 1rem !important;
+}
+
 /* Auth pages — also need safe area padding on mobile */
 .auth-page {
   padding-top: env(safe-area-inset-top);

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -55,7 +56,26 @@ function AppRoutes() {
   );
 }
 
+// Hide bottom nav when iOS keyboard opens so it doesn't float awkwardly
+function useKeyboardDetection() {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const keyboardOpen = (window.innerHeight - vv.height) > 150;
+      document.body.classList.toggle('keyboard-open', keyboardOpen);
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+}
+
 export default function App() {
+  useKeyboardDetection();
   return (
     <ThemeProvider>
       <AuthProvider>
