@@ -2,10 +2,13 @@
 nixPkgs = ["nodejs_24"]
 
 [phases.install]
-cmds = ["npm install --prefix frontend", "npm install --prefix backend"]
+cmds = [
+  "NODE_ENV=development npm install --prefix frontend",
+  "npm install --prefix backend"
+]
 
 [phases.build]
-cmds = ["npm run build --prefix frontend"]
+cmds = ["NODE_ENV=development npm run build --prefix frontend"]
 
 [start]
 cmd = "node backend/server.js"
