@@ -153,7 +153,7 @@ body {
   font-family: 'Outfit', sans-serif;
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  min-height: 100dvh;
   line-height: 1.5;
   overflow-x: hidden;
 }
@@ -484,7 +484,7 @@ body {
 
 /* ── AUTH ────────────────────────────── */
 .auth-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -729,7 +729,7 @@ body {
 .divider { border: none; border-top: 1px solid var(--border); margin: 1.1rem 0; }
 
 /* ── EMPTY / LOADING ─────────────────── */
-.loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; color: var(--text-muted); font-size: 0.9rem; }
+.loading { display: flex; align-items: center; justify-content: center; min-height: 100dvh; color: var(--text-muted); font-size: 0.9rem; }
 .empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 0.875rem; }
 .empty-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
 
