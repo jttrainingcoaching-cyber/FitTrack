@@ -1,0 +1,13 @@
+{
+  "name": "fittrack",
+  "version": "2.0.0",
+  "description": "Full-stack fitness tracking app — workouts, nutrition, progress",
+  "scripts": {
+    "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && node server.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "postinstall": "npm run install:all && npm run build"
+  }
+}
