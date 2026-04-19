@@ -5,6 +5,48 @@ import { useToast } from '../context/ToastContext';
 
 const DEFAULT_GOALS = { calories: 2000, protein: 150, carbs: 250, fat: 65 };
 
+// ── Built-in Quick Add Defaults ───────────────────────────────────────────────
+const DEFAULT_QUICK_ADDS = [
+  {
+    category: '🌅 Breakfast',
+    items: [
+      { name: 'Oatmeal w/ Banana',     calories: 350, protein: 12, carbs: 62, fat: 6  },
+      { name: 'Scrambled Eggs (3)',     calories: 240, protein: 18, carbs: 1,  fat: 16 },
+      { name: 'Greek Yogurt Bowl',      calories: 200, protein: 20, carbs: 22, fat: 3  },
+      { name: 'Protein Shake',          calories: 180, protein: 30, carbs: 8,  fat: 3  },
+      { name: 'Avocado Toast',          calories: 310, protein: 9,  carbs: 34, fat: 15 },
+    ],
+  },
+  {
+    category: '☀️ Lunch',
+    items: [
+      { name: 'Chicken & Rice',         calories: 480, protein: 45, carbs: 52, fat: 8  },
+      { name: 'Turkey Wrap',            calories: 420, protein: 32, carbs: 45, fat: 12 },
+      { name: 'Tuna Salad Bowl',        calories: 300, protein: 35, carbs: 8,  fat: 14 },
+      { name: 'Salmon & Sweet Potato',  calories: 450, protein: 40, carbs: 35, fat: 12 },
+    ],
+  },
+  {
+    category: '🌙 Dinner',
+    items: [
+      { name: 'Ground Beef & Rice',     calories: 550, protein: 38, carbs: 52, fat: 18 },
+      { name: 'Pasta w/ Chicken',       calories: 520, protein: 40, carbs: 58, fat: 10 },
+      { name: 'Steak & Veggies',        calories: 480, protein: 42, carbs: 18, fat: 24 },
+      { name: 'Chicken Stir Fry',       calories: 410, protein: 38, carbs: 30, fat: 14 },
+    ],
+  },
+  {
+    category: '🍎 Snacks',
+    items: [
+      { name: 'Protein Bar',            calories: 200, protein: 20, carbs: 22, fat: 7  },
+      { name: 'Almonds (1oz)',          calories: 164, protein: 6,  carbs: 6,  fat: 14 },
+      { name: 'Banana & Peanut Butter', calories: 270, protein: 7,  carbs: 32, fat: 11 },
+      { name: 'Cottage Cheese Cup',     calories: 150, protein: 25, carbs: 5,  fat: 2  },
+      { name: 'Rice Cakes & PB (2)',    calories: 210, protein: 7,  carbs: 28, fat: 9  },
+    ],
+  },
+];
+
 // ── Barcode Scanner ──────────────────────────────────────────────────────────
 
 function BarcodeScanner({ onFill }) {
@@ -340,8 +382,10 @@ export default function NutritionTracker() {
   const [goals, setGoals]       = useState(DEFAULT_GOALS);
   const [form, setForm]         = useState({ name: '', calories: '', protein: '', carbs: '', fat: '' });
   const [adding, setAdding]     = useState(false);
-  const [quickAdding, setQuickAdding] = useState(null); // id of preset being added
+  const [quickAdding, setQuickAdding] = useState(null);
   const [showPresetForm, setShowPresetForm] = useState(false);
+  const [quickTab, setQuickTab] = useState('defaults'); // 'defaults' | 'mine'
+  const [defaultCategory, setDefaultCategory] = useState(0);
 
   useEffect(() => {
     loadPresets();
@@ -393,6 +437,18 @@ export default function NutritionTracker() {
       addToast(`${p.name} added — ${p.calories} kcal`, 'success');
     } catch {
       addToast('Failed to add meal', 'error');
+    }
+    setQuickAdding(null);
+  };
+
+  // Quick-add a default item (no id, use name as key)
+  const handleDefaultAdd = async (item) => {
+    setQuickAdding(`d_${item.name}`);
+    try {
+      await addMeal(item);
+      addToast(`${item.name} added — ${item.calories} kcal`, 'success');
+    } catch {
+      addToast('Failed to add', 'error');
     }
     setQuickAdding(null);
   };
@@ -521,49 +577,89 @@ export default function NutritionTracker() {
         );
       })()}
 
-      {/* Quick Add presets */}
+      {/* Quick Add */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        {/* Header with tabs */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
           <div className="card-title" style={{ marginBottom: 0 }}>Quick Add</div>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => setShowPresetForm(v => !v)}
-            style={{ fontSize: '0.78rem' }}
-          >
-            {showPresetForm ? '✕ Cancel' : '➕ New Item'}
+          {quickTab === 'mine' && (
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowPresetForm(v => !v)} style={{ fontSize: '0.78rem' }}>
+              {showPresetForm ? '✕ Cancel' : '➕ New Item'}
+            </button>
+          )}
+        </div>
+
+        {/* Tab switcher */}
+        <div className="quick-add-tabs">
+          <button className={`qa-tab ${quickTab === 'defaults' ? 'active' : ''}`} onClick={() => setQuickTab('defaults')}>
+            Defaults
+          </button>
+          <button className={`qa-tab ${quickTab === 'mine' ? 'active' : ''}`} onClick={() => setQuickTab('mine')}>
+            My Items {presets.length > 0 && <span className="qa-tab-badge">{presets.length}</span>}
           </button>
         </div>
 
-        {showPresetForm && (
-          <CreatePresetForm
-            onSaved={loadPresets}
-            onClose={() => setShowPresetForm(false)}
-          />
+        {/* Defaults tab */}
+        {quickTab === 'defaults' && (
+          <div>
+            {/* Category pills */}
+            <div className="qa-categories">
+              {DEFAULT_QUICK_ADDS.map((cat, i) => (
+                <button
+                  key={i}
+                  className={`qa-cat-pill ${defaultCategory === i ? 'active' : ''}`}
+                  onClick={() => setDefaultCategory(i)}
+                >
+                  {cat.category}
+                </button>
+              ))}
+            </div>
+            <div className="preset-grid">
+              {DEFAULT_QUICK_ADDS[defaultCategory].items.map((item) => (
+                <button
+                  key={item.name}
+                  className="preset-btn preset-btn-default"
+                  onClick={() => handleDefaultAdd(item)}
+                  disabled={quickAdding === `d_${item.name}`}
+                  style={{ opacity: quickAdding === `d_${item.name}` ? 0.6 : 1 }}
+                >
+                  <div className="preset-btn-name">{item.name}</div>
+                  <div className="preset-btn-cal">{item.calories} kcal · {item.protein}g P</div>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
-        {presets.length === 0 && !showPresetForm ? (
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
-            No quick add items yet. Click "New Item" to add your frequently eaten foods.
-          </div>
-        ) : (
-          <div className="preset-grid">
-            {presets.map(p => (
-              <button
-                key={p.id}
-                className="preset-btn"
-                onClick={() => handleQuickAdd(p)}
-                disabled={quickAdding === p.id}
-                style={{ opacity: quickAdding === p.id ? 0.6 : 1, position: 'relative' }}
-              >
-                {quickAdding === p.id && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)', borderRadius: 'inherit', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Adding…
-                  </div>
-                )}
-                <div className="preset-btn-name">{p.name}</div>
-                <div className="preset-btn-cal">{p.calories} kcal · {p.protein}g P</div>
-              </button>
-            ))}
+        {/* My Items tab */}
+        {quickTab === 'mine' && (
+          <div>
+            {showPresetForm && (
+              <CreatePresetForm onSaved={loadPresets} onClose={() => setShowPresetForm(false)} />
+            )}
+            {presets.length === 0 && !showPresetForm ? (
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
+                No saved items yet. Click "New Item" to save your go-to meals here.
+              </div>
+            ) : (
+              <div className="preset-grid">
+                {presets.map(p => (
+                  <button
+                    key={p.id}
+                    className="preset-btn"
+                    onClick={() => handleQuickAdd(p)}
+                    disabled={quickAdding === p.id}
+                    style={{ opacity: quickAdding === p.id ? 0.6 : 1, position: 'relative' }}
+                  >
+                    {quickAdding === p.id && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)', borderRadius: 'inherit', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Adding…</div>
+                    )}
+                    <div className="preset-btn-name">{p.name}</div>
+                    <div className="preset-btn-cal">{p.calories} kcal · {p.protein}g P</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

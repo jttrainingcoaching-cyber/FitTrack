@@ -564,6 +564,75 @@ body {
 .macro-carbs   { color: #86efac; }
 .macro-fat     { color: #fde68a; }
 
+/* ── QUICK ADD TABS ─────────────────── */
+.quick-add-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+  background: var(--bg-elevated);
+  padding: 0.3rem;
+  border-radius: 10px;
+}
+.qa-tab {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.qa-tab.active {
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.qa-tab-badge {
+  background: var(--indigo);
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.qa-categories {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.qa-cat-pill {
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.qa-cat-pill.active {
+  border-color: var(--indigo);
+  background: rgba(99,102,241,0.12);
+  color: var(--indigo);
+}
+.preset-btn-default {
+  border-color: rgba(99,102,241,0.2) !important;
+}
+.preset-btn-default:hover {
+  border-color: var(--indigo) !important;
+  background: rgba(99,102,241,0.1) !important;
+}
+
 /* ── PRESETS ─────────────────────────── */
 .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 0.5rem; margin-top: 0.75rem; }
 .preset-btn {

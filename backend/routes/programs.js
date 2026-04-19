@@ -54,8 +54,10 @@ db.exec(`
 
 // ── Seed built-in programs ───────────────────────────────────────────────────
 function seedPrograms() {
-  const count = db.prepare('SELECT COUNT(*) as c FROM programs WHERE is_builtin = 1').get();
-  if (count.c > 0) return;
+  // Only insert programs that don't already exist by name
+  const existingNames = new Set(
+    db.prepare('SELECT name FROM programs WHERE is_builtin = 1').all().map(r => r.name)
+  );
 
   const PROGRAMS = [
     {
@@ -212,6 +214,231 @@ function seedPrograms() {
         { day: 7, name: 'Rest', type: 'Rest', exercises: [] },
       ],
     },
+    {
+      name: 'Upper / Lower Split',
+      description: 'Train each muscle group twice per week with a smart upper/lower split. Ideal for intermediates wanting more volume without the 6-day commitment of PPL.',
+      goal: 'Build Muscle',
+      difficulty: 'Intermediate',
+      days_per_week: 4,
+      duration_weeks: 12,
+      schedule: [
+        { day: 1, name: 'Upper A — Strength', type: 'Upper', exercises: [
+          { name: 'Bench Press',        sets: 4, reps: '4-6',   notes: 'Heavy — aim to add weight each week' },
+          { name: 'Barbell Row',        sets: 4, reps: '4-6',   notes: 'Overhand grip, pull to lower chest' },
+          { name: 'Overhead Press',     sets: 3, reps: '6-8',   notes: 'Strict form, bar skims your face on the way up' },
+          { name: 'Pull-ups',           sets: 3, reps: '6-8',   notes: 'Add weight if you can get 8+ easily' },
+          { name: 'Dumbbell Curl',      sets: 3, reps: '10-12', notes: 'Supinate at top for peak contraction' },
+          { name: 'Tricep Pushdown',    sets: 3, reps: '10-12', notes: 'Lock elbows at sides, full lockout' },
+        ]},
+        { day: 2, name: 'Lower A — Strength', type: 'Legs', exercises: [
+          { name: 'Squat',              sets: 4, reps: '4-6',   notes: 'Hit parallel or below every rep' },
+          { name: 'Romanian Deadlift',  sets: 4, reps: '6-8',   notes: 'Hinge deep, feel hamstring stretch' },
+          { name: 'Leg Press',          sets: 3, reps: '8-10',  notes: 'Full depth, controlled negative' },
+          { name: 'Leg Curl',           sets: 3, reps: '10-12', notes: 'Slow 3-second negative' },
+          { name: 'Standing Calf Raise',sets: 4, reps: '12-15', notes: 'Pause at bottom stretch for 1 second' },
+        ]},
+        { day: 3, name: 'Rest', type: 'Rest', exercises: [] },
+        { day: 4, name: 'Upper B — Hypertrophy', type: 'Upper', exercises: [
+          { name: 'Incline Dumbbell Press', sets: 4, reps: '8-12', notes: 'Upper chest emphasis, feel the stretch' },
+          { name: 'Cable Row',           sets: 4, reps: '10-12', notes: 'Constant tension on lats the whole way' },
+          { name: 'Dumbbell Shoulder Press', sets: 3, reps: '10-12', notes: 'Full range, touch dumbbells at bottom' },
+          { name: 'Lat Pulldown',        sets: 3, reps: '10-12', notes: 'Wide grip, pull to upper chest' },
+          { name: 'Incline Dumbbell Curl',sets: 3, reps: '12-15', notes: 'Long head bicep stretch at bottom' },
+          { name: 'Skull Crushers',      sets: 3, reps: '12-15', notes: 'Lower to forehead, elbows stay fixed' },
+          { name: 'Face Pulls',          sets: 3, reps: '15-20', notes: 'Rear delts and rotator cuff health — never skip this' },
+        ]},
+        { day: 5, name: 'Lower B — Hypertrophy', type: 'Legs', exercises: [
+          { name: 'Front Squat',         sets: 4, reps: '8-10',  notes: 'Or hack squat if front squat is uncomfortable' },
+          { name: 'Hip Thrust',          sets: 4, reps: '10-12', notes: 'Full glute squeeze at the top, hold 1 second' },
+          { name: 'Walking Lunges',      sets: 3, reps: '12 each', notes: 'Keep torso upright throughout' },
+          { name: 'Leg Extension',       sets: 3, reps: '15-20', notes: 'VMO focus, hold contraction for a beat' },
+          { name: 'Seated Calf Raise',   sets: 4, reps: '15-20', notes: 'Soleus focus — different angle than standing' },
+        ]},
+        { day: 6, name: 'Rest', type: 'Rest', exercises: [] },
+        { day: 7, name: 'Rest', type: 'Rest', exercises: [] },
+      ],
+    },
+    {
+      name: 'Home / Bodyweight',
+      description: 'Zero equipment needed. Build real strength and conditioning using just your bodyweight — anywhere, anytime. Perfect when you can\'t get to the gym.',
+      goal: 'Build Muscle',
+      difficulty: 'Beginner',
+      days_per_week: 3,
+      duration_weeks: 8,
+      schedule: [
+        { day: 1, name: 'Push & Core', type: 'Upper', exercises: [
+          { name: 'Push-ups',           sets: 4, reps: '10-20',  notes: 'Progress to diamond or archer push-ups as this gets easy' },
+          { name: 'Pike Push-ups',      sets: 3, reps: '8-12',   notes: 'Targets shoulders — hips high, head toward floor' },
+          { name: 'Tricep Dips',        sets: 3, reps: '10-15',  notes: 'Use a sturdy chair or bench' },
+          { name: 'Plank',              sets: 3, reps: '45-60s', notes: 'Squeeze glutes and core — no sagging hips' },
+          { name: 'Mountain Climbers',  sets: 3, reps: '20',     notes: 'Fast pace, drive knees to chest' },
+          { name: 'Hollow Body Hold',   sets: 3, reps: '30s',    notes: 'Lower back pressed into floor the entire time' },
+        ]},
+        { day: 2, name: 'Rest', type: 'Rest', exercises: [] },
+        { day: 3, name: 'Pull & Biceps', type: 'Upper', exercises: [
+          { name: 'Pull-ups',           sets: 4, reps: '4-10',   notes: 'Use a door frame bar or playground. Full hang at bottom' },
+          { name: 'Inverted Row',       sets: 3, reps: '10-15',  notes: 'Table or bar at hip height. Keep body straight' },
+          { name: 'Superman Hold',      sets: 3, reps: '12',     notes: 'Lie face down, lift arms + legs simultaneously, hold 2s' },
+          { name: 'Chin-ups',           sets: 3, reps: '4-8',    notes: 'Underhand grip — more bicep activation than pull-ups' },
+          { name: 'Dead Hang',          sets: 3, reps: '30-45s', notes: 'Great for grip strength and shoulder health' },
+        ]},
+        { day: 4, name: 'Rest', type: 'Rest', exercises: [] },
+        { day: 5, name: 'Legs & Cardio', type: 'Legs', exercises: [
+          { name: 'Bodyweight Squat',   sets: 4, reps: '20',     notes: 'Add a pause at the bottom for more difficulty' },
+          { name: 'Bulgarian Split Squat', sets: 3, reps: '10 each', notes: 'Rear foot on chair — most effective single-leg move' },
+          { name: 'Glute Bridge',       sets: 4, reps: '20',     notes: 'Single-leg version when this gets easy' },
+          { name: 'Jump Squats',        sets: 3, reps: '10',     notes: 'Land soft, absorb through the whole foot' },
+          { name: 'Step-ups',           sets: 3, reps: '12 each', notes: 'Use stairs or a sturdy box' },
+          { name: 'Burpees',            sets: 3, reps: '10',     notes: 'Full extension at top, chest to floor at bottom' },
+        ]},
+        { day: 6, name: 'Rest', type: 'Rest', exercises: [] },
+        { day: 7, name: 'Rest', type: 'Rest', exercises: [] },
+      ],
+    },
+    {
+      name: 'Powerlifting Foundations',
+      description: 'Build elite-level strength in the squat, bench, and deadlift. Structured peaking cycles, accessory work, and deload weeks get you competition-ready.',
+      goal: 'Strength',
+      difficulty: 'Advanced',
+      days_per_week: 4,
+      duration_weeks: 16,
+      schedule: [
+        { day: 1, name: 'Squat Day', type: 'Legs', exercises: [
+          { name: 'Squat',              sets: 5, reps: '3-5',   notes: 'Competition stance. Record every set — this is your progress tracker' },
+          { name: 'Pause Squat',        sets: 3, reps: '3',     notes: '2-second pause at the hole. Builds bottom strength' },
+          { name: 'Romanian Deadlift',  sets: 3, reps: '8',     notes: 'Hamstring accessory for squat carry-over' },
+          { name: 'Leg Press',          sets: 3, reps: '10-12', notes: 'Quad volume work' },
+          { name: 'Ab Wheel Rollout',   sets: 3, reps: '10',    notes: 'Core strength is critical for heavy squats' },
+        ]},
+        { day: 2, name: 'Bench Day', type: 'Push', exercises: [
+          { name: 'Bench Press',        sets: 5, reps: '3-5',   notes: 'Leg drive, arch, stay tight. Treat every set like a max' },
+          { name: 'Close-Grip Bench Press', sets: 3, reps: '6-8', notes: 'Tricep lockout strength — crucial for heavy bench' },
+          { name: 'Overhead Press',     sets: 3, reps: '6-8',   notes: 'Shoulder stability and overhead strength carry-over' },
+          { name: 'Tricep Pushdown',    sets: 4, reps: '12-15', notes: 'Pump the triceps out — they finish every bench rep' },
+          { name: 'Face Pulls',         sets: 4, reps: '20',    notes: 'Shoulder health. Do these religiously when pressing heavy' },
+        ]},
+        { day: 3, name: 'Rest', type: 'Rest', exercises: [] },
+        { day: 4, name: 'Deadlift Day', type: 'Pull', exercises: [
+          { name: 'Deadlift',           sets: 4, reps: '2-4',   notes: 'Lock in your setup every single rep. Back flat, bar over mid-foot' },
+          { name: 'Deficit Deadlift',   sets: 3, reps: '4',     notes: 'Stand on 2-inch plate. Builds leg drive off the floor' },
+          { name: 'Barbell Row',        sets: 4, reps: '6-8',   notes: 'Upper back — your deadlift will stall without it' },
+          { name: 'Pull-ups',           sets: 3, reps: '6-8',   notes: 'Lat strength for keeping bar close in the pull' },
+          { name: 'Farmer Carries',     sets: 3, reps: '40m',   notes: 'Grip and core — walk with heavy dumbbells or trap bar' },
+        ]},
+        { day: 5, name: 'Accessory Day', type: 'Full Body', exercises: [
+          { name: 'Romanian Deadlift',  sets: 3, reps: '10',    notes: 'Light — focus on hamstring stretch and feel' },
+          { name: 'Incline Dumbbell Press', sets: 3, reps: '12', notes: 'Upper chest and shoulder health' },
+          { name: 'Dumbbell Row',       sets: 3, reps: '12',    notes: 'Single arm, chest supported, full range' },
+          { name: 'Lateral Raises',     sets: 4, reps: '15',    notes: 'Shoulder health and width' },
+          { name: 'Plank',              sets: 3, reps: '60s',   notes: 'Hold tight' },
+        ]},
+        { day: 6, name: 'Rest', type: 'Rest', exercises: [] },
+        { day: 7, name: 'Rest', type: 'Rest', exercises: [] },
+      ],
+    },
+    {
+      name: 'Athletic Performance',
+      description: 'For athletes who want to move better, be more explosive, and build functional strength. Combines compound lifting, plyometrics, and conditioning.',
+      goal: 'Strength',
+      difficulty: 'Intermediate',
+      days_per_week: 5,
+      duration_weeks: 10,
+      schedule: [
+        { day: 1, name: 'Power & Lower', type: 'Legs', exercises: [
+          { name: 'Box Jumps',          sets: 4, reps: '5',      notes: 'Maximum effort each jump. Land softly, reset fully between reps' },
+          { name: 'Squat',              sets: 4, reps: '4-6',    notes: 'Moderate-heavy. Focus on speed out of the hole' },
+          { name: 'Romanian Deadlift',  sets: 3, reps: '8',      notes: 'Hamstring strength for sprint and jump ability' },
+          { name: 'Bulgarian Split Squat', sets: 3, reps: '8 each', notes: 'Single-leg strength and balance' },
+          { name: 'Broad Jumps',        sets: 4, reps: '5',      notes: 'Max horizontal distance each jump' },
+        ]},
+        { day: 2, name: 'Upper Strength', type: 'Upper', exercises: [
+          { name: 'Bench Press',        sets: 4, reps: '5-6',    notes: 'Explosive concentric — push the bar away fast' },
+          { name: 'Pull-ups',           sets: 4, reps: '6-8',    notes: 'Pull-ups are the ultimate upper body athletic exercise' },
+          { name: 'Overhead Press',     sets: 3, reps: '6-8',    notes: 'Shoulder stability and pushing power' },
+          { name: 'Barbell Row',        sets: 3, reps: '6-8',    notes: 'Pulling strength is underrated for athletes' },
+          { name: 'Medicine Ball Slam', sets: 4, reps: '8',      notes: 'Full body power. Slam it like you mean it' },
+        ]},
+        { day: 3, name: 'Speed & Conditioning', type: 'Cardio', exercises: [
+          { name: 'Sprint Intervals',   sets: 8, reps: '20s on/40s off', notes: 'All-out effort on the sprints. Walk recovery' },
+          { name: 'Lateral Bounds',     sets: 3, reps: '10 each', notes: 'Side-to-side hops for lateral quickness' },
+          { name: 'Agility Ladder Drills', sets: 4, reps: '30s', notes: 'Quick feet, stay on your toes' },
+          { name: 'Sled Push',          sets: 6, reps: '20m',    notes: 'Or replace with uphill sprint if no sled' },
+        ]},
+        { day: 4, name: 'Lower Hypertrophy', type: 'Legs', exercises: [
+          { name: 'Deadlift',           sets: 4, reps: '4-6',    notes: 'Posterior chain power for jumping and sprinting' },
+          { name: 'Hip Thrust',         sets: 4, reps: '10-12',  notes: 'Glute power drives all athletic movement' },
+          { name: 'Leg Press',          sets: 3, reps: '12-15',  notes: 'Volume work for quad mass' },
+          { name: 'Leg Curl',           sets: 3, reps: '12',     notes: 'Hamstring balance to prevent injury' },
+          { name: 'Single-Leg Calf Raise', sets: 3, reps: '15', notes: 'Ankle stability and calf power for sprinting' },
+        ]},
+        { day: 5, name: 'Upper Hypertrophy', type: 'Upper', exercises: [
+          { name: 'Dumbbell Bench Press', sets: 4, reps: '10-12', notes: 'Greater range of motion than barbell' },
+          { name: 'Cable Row',           sets: 4, reps: '12',    notes: 'Full range, squeeze shoulder blades hard at the end' },
+          { name: 'Arnold Press',        sets: 3, reps: '10-12', notes: 'Rotational shoulder movement for full delt development' },
+          { name: 'Lat Pulldown',        sets: 3, reps: '10-12', notes: 'Wide grip for lat width' },
+          { name: 'Hammer Curl',         sets: 3, reps: '12',    notes: 'Brachialis and forearm strength' },
+          { name: 'Tricep Overhead Extension', sets: 3, reps: '12', notes: 'Long head tricep — most of the muscle' },
+        ]},
+        { day: 6, name: 'Active Recovery', type: 'Cardio', exercises: [
+          { name: 'Foam Rolling',        sets: 1, reps: '10 min', notes: 'Quads, hamstrings, calves, upper back' },
+          { name: 'Mobility Work',       sets: 1, reps: '10 min', notes: 'Hip flexors, thoracic spine, ankles' },
+          { name: 'Incline Walk',        sets: 1, reps: '20 min', notes: 'Light movement, promote blood flow and recovery' },
+        ]},
+        { day: 7, name: 'Rest', type: 'Rest', exercises: [] },
+      ],
+    },
+    {
+      name: '12-Week Body Recomposition',
+      description: 'Simultaneously lose fat and build muscle. Structured training with strategic nutrition targets. Best results when combined with a slight calorie deficit and high protein intake.',
+      goal: 'Lose Weight',
+      difficulty: 'Intermediate',
+      days_per_week: 5,
+      duration_weeks: 12,
+      schedule: [
+        { day: 1, name: 'Chest & Triceps', type: 'Push', exercises: [
+          { name: 'Bench Press',          sets: 4, reps: '8-10',  notes: 'Moderate weight, controlled tempo. 3 sec down, 1 sec up' },
+          { name: 'Incline Dumbbell Press', sets: 3, reps: '10-12', notes: 'Upper chest — often underdeveloped' },
+          { name: 'Cable Chest Fly',       sets: 3, reps: '12-15', notes: 'Stretch at the bottom, squeeze at the top' },
+          { name: 'Tricep Pushdown',       sets: 3, reps: '15',   notes: 'Superset with overhead extension for the pump' },
+          { name: 'Overhead Tricep Extension', sets: 3, reps: '15', notes: 'Long head stretch — fullest tricep development' },
+        ]},
+        { day: 2, name: 'Back & Biceps', type: 'Pull', exercises: [
+          { name: 'Deadlift',             sets: 3, reps: '6',     notes: 'Keep it moderate — this is a recomp program, not pure strength' },
+          { name: 'Pull-ups',             sets: 4, reps: '6-10',  notes: 'Full hang at bottom, chest to bar at top ideally' },
+          { name: 'Cable Row',            sets: 3, reps: '12',    notes: 'Pull elbows past your back, hold 1 second' },
+          { name: 'Dumbbell Row',         sets: 3, reps: '12',    notes: 'Support chest on bench for strict form' },
+          { name: 'Barbell Curl',         sets: 3, reps: '12',    notes: 'No swinging — ego at the door' },
+          { name: 'Hammer Curl',          sets: 3, reps: '12',    notes: 'Brachialis thickness makes arms look bigger overall' },
+        ]},
+        { day: 3, name: 'Legs', type: 'Legs', exercises: [
+          { name: 'Squat',                sets: 4, reps: '8-10',  notes: 'Legs are your biggest muscle group — train them hard' },
+          { name: 'Romanian Deadlift',    sets: 3, reps: '12',    notes: 'Hamstrings and glutes — where most of the recomp happens' },
+          { name: 'Walking Lunges',       sets: 3, reps: '12 each', notes: 'Metabolic — keeps heart rate up while building legs' },
+          { name: 'Leg Press',            sets: 3, reps: '15',    notes: 'Higher rep for more calorie burn' },
+          { name: 'Calf Raises',          sets: 4, reps: '20',    notes: 'Full stretch at bottom — most people skip this' },
+        ]},
+        { day: 4, name: 'Shoulders & Abs', type: 'Upper', exercises: [
+          { name: 'Overhead Press',       sets: 4, reps: '8-10',  notes: 'Seated or standing, strict form' },
+          { name: 'Lateral Raises',       sets: 4, reps: '15-20', notes: 'Medial delt width — the muscle that makes shoulders look broad' },
+          { name: 'Front Raises',         sets: 3, reps: '12',    notes: 'Alternate arms, control the negative' },
+          { name: 'Face Pulls',           sets: 3, reps: '20',    notes: 'Rear delt and rotator cuff health' },
+          { name: 'Hanging Leg Raises',   sets: 3, reps: '15',    notes: 'Full range — touch bar with feet if possible' },
+          { name: 'Cable Crunch',         sets: 3, reps: '20',    notes: 'Flex abs at the bottom, not just bending forward' },
+        ]},
+        { day: 5, name: 'Full Body HIIT Finisher', type: 'Full Body', exercises: [
+          { name: 'Goblet Squat',         sets: 3, reps: '15',    notes: 'Keep chest tall, elbows inside knees' },
+          { name: 'Dumbbell Row',         sets: 3, reps: '12',    notes: 'Alternate arms quickly' },
+          { name: 'Push-ups',             sets: 3, reps: '15',    notes: 'Move fast — this is conditioning' },
+          { name: 'Hip Thrust',           sets: 3, reps: '15',    notes: 'Squeeze glutes hard at the top' },
+          { name: 'Battle Rope Waves',    sets: 4, reps: '30s',   notes: 'Or jump rope if no battle ropes' },
+          { name: 'Burpees',              sets: 3, reps: '10',    notes: 'Full range — finish strong' },
+        ]},
+        { day: 6, name: 'Active Recovery', type: 'Cardio', exercises: [
+          { name: 'Incline Walk / Bike',  sets: 1, reps: '30-45 min', notes: 'Zone 2 cardio — you should be able to hold a conversation' },
+        ]},
+        { day: 7, name: 'Rest', type: 'Rest', exercises: [] },
+      ],
+    },
   ];
 
   const insertProgram = db.prepare(
@@ -226,6 +453,7 @@ function seedPrograms() {
 
   const seed = db.transaction(() => {
     for (const prog of PROGRAMS) {
+      if (existingNames.has(prog.name)) continue; // already seeded
       const { lastInsertRowid: progId } = insertProgram.run(
         prog.name, prog.description, prog.goal, prog.difficulty,
         prog.days_per_week, prog.duration_weeks
