@@ -7,6 +7,68 @@ import {
 } from 'recharts';
 import WorkoutHeatmap from '../components/WorkoutHeatmap';
 import ExerciseSubstitutes from '../components/ExerciseSubstitutes';
+import Skeleton, { SkeletonPR } from '../components/Skeleton';
+
+// ── Personal Records ──────────────────────────────────────────────────────────
+
+function PersonalRecords() {
+  const [prs, setPRs]       = useState([]);
+  const [loading, setLoad]  = useState(true);
+
+  useEffect(() => {
+    api.get('/workouts/prs')
+      .then(r => setPRs(r.data))
+      .catch(() => {})
+      .finally(() => setLoad(false));
+  }, []);
+
+  return (
+    <div className="card" style={{ marginBottom: '1.5rem', borderColor: 'rgba(234,179,8,0.35)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.2rem' }}>🏆</span>
+          <div className="section-title" style={{ margin: 0 }}>Personal Records</div>
+        </div>
+        {!loading && prs.length > 0 && (
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {prs.length} exercise{prs.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="pr-grid">
+          {[0,1,2,3,4,5].map(i => <SkeletonPR key={i} />)}
+        </div>
+      ) : prs.length === 0 ? (
+        <div className="empty">
+          <div className="empty-icon">🏋️</div>
+          Log workouts with weights to start tracking your personal records
+        </div>
+      ) : (
+        <div className="pr-grid">
+          {prs.map(pr => (
+            <div key={pr.exercise_name} className="pr-card">
+              <div className="pr-trophy">🏆</div>
+              <div className="pr-exercise">{pr.exercise_name}</div>
+              <div className="pr-weight">
+                {pr.weight}<span className="pr-unit">lbs</span>
+              </div>
+              {(pr.reps || pr.one_rep_max) && (
+                <div className="pr-detail">
+                  {pr.reps ? `${pr.reps} reps` : ''}
+                  {pr.reps && pr.one_rep_max ? ' · ' : ''}
+                  {pr.one_rep_max ? `~${pr.one_rep_max} 1RM` : ''}
+                </div>
+              )}
+              <div className="pr-date">{pr.date}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const TOOLTIP_STYLE = {
   contentStyle: {
@@ -336,6 +398,9 @@ export default function Progress() {
         <h1>Progress</h1>
         <p>Body weight trends, training volume, and strength progression</p>
       </div>
+
+      {/* Personal Records */}
+      <PersonalRecords />
 
       {/* Summary cards */}
       <div className="grid-3" style={{ marginBottom: '1.5rem' }}>

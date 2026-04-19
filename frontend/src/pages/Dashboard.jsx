@@ -6,6 +6,7 @@ import { usePreferences } from '../context/PreferencesContext';
 import ProgressBar from '../components/ProgressBar';
 import NumberInput from '../components/NumberInput';
 import WellnessCheckin from '../components/WellnessCheckin';
+import Skeleton, { SkeletonCard, SkeletonStat } from '../components/Skeleton';
 
 function greeting() {
   const h = new Date().getHours();
@@ -32,6 +33,185 @@ function getStreakMsg(count, type) {
   const match = [...msgs].reverse().find(m => count >= m.min);
   return match?.msg || null;
 }
+
+// ── Active Program Widget ─────────────────────────────────────────────────────
+
+function ActiveProgramWidget() {
+  const [prog, setProg]   = useState(null);
+  const [loading, setLoad] = useState(true);
+
+  useEffect(() => {
+    api.get('/programs/active/today')
+      .then(r => setProg(r.data))
+      .catch(() => setProg(null))
+      .finally(() => setLoad(false));
+  }, []);
+
+  if (loading) return (
+    <div className="card" style={{ marginBottom: '1rem', borderColor: 'rgba(99,102,241,0.3)' }}>
+      <Skeleton height={14} width="35%" radius={5} style={{ marginBottom: '0.5rem' }} />
+      <Skeleton height={20} width="65%" radius={6} style={{ marginBottom: '0.75rem' }} />
+      <Skeleton height={8}  width="100%" radius={4} style={{ marginBottom: '0.85rem' }} />
+      <Skeleton height={13} width="50%" radius={5} />
+    </div>
+  );
+
+  if (!prog || !prog.program) return null;
+
+  const { program, today_workout, day_number, total_days } = prog;
+  const pct = total_days > 0 ? Math.round((day_number / total_days) * 100) : 0;
+  const isRest = !today_workout || today_workout.is_rest_day;
+
+  return (
+    <div className="card" style={{ marginBottom: '1rem', borderColor: 'rgba(99,102,241,0.35)', background: 'rgba(99,102,241,0.04)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem' }}>
+        <div>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--indigo)', marginBottom: '0.2rem' }}>
+            Active Program
+          </div>
+          <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>{program.name}</div>
+        </div>
+        <Link to="/programs" style={{ fontSize: '0.75rem', color: 'var(--indigo)', textDecoration: 'none', fontWeight: 600, marginTop: '0.1rem' }}>
+          View →
+        </Link>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+          <span>Day {day_number} of {total_days}</span>
+          <span>{pct}% complete</span>
+        </div>
+        <div className="prog-progress-bar">
+          <div className="prog-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      {isRest ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem 0.85rem', background: 'var(--bg-elevated)', borderRadius: 10 }}>
+          <span style={{ fontSize: '1.3rem' }}>😴</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>Rest Day</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Recovery is where the gains happen</div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.4rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Today · {today_workout.name}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            {(today_workout.exercises || []).slice(0, 4).map((ex, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0.7rem', background: 'var(--bg-elevated)', borderRadius: 8 }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{ex.name}</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ex.sets ? `${ex.sets} sets` : ''}
+                  {ex.weight ? ` @ ${ex.weight}lbs` : ''}
+                </span>
+              </div>
+            ))}
+            {(today_workout.exercises || []).length > 4 && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '0.3rem' }}>
+                +{today_workout.exercises.length - 4} more exercises
+              </div>
+            )}
+          </div>
+          <Link to="/workouts" style={{ textDecoration: 'none', display: 'block', marginTop: '0.65rem' }}>
+            <button className="btn btn-primary" style={{ width: '100%' }}>
+              💪 Start Today's Workout
+            </button>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Recent PRs Strip ──────────────────────────────────────────────────────────
+
+function RecentPRsStrip({ prs }) {
+  if (!prs || prs.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: '1rem' }}>
+      <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+        Recent PRs
+      </div>
+      <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+        {prs.map(pr => (
+          <div key={pr.exercise_name} style={{
+            flexShrink: 0,
+            padding: '0.5rem 0.85rem',
+            background: 'rgba(234,179,8,0.07)',
+            border: '1px solid rgba(234,179,8,0.25)',
+            borderRadius: 10,
+            minWidth: 0,
+          }}>
+            <div style={{ fontSize: '0.68rem', color: 'var(--yellow)', fontWeight: 700, marginBottom: '0.15rem' }}>🏆 PR</div>
+            <div style={{ fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{pr.exercise_name}</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{pr.weight} lbs</div>
+          </div>
+        ))}
+        <Link to="/progress" style={{
+          flexShrink: 0,
+          padding: '0.5rem 0.85rem',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          textDecoration: 'none',
+          display: 'flex', alignItems: 'center',
+          color: 'var(--indigo)', fontSize: '0.8rem', fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}>
+          All PRs →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Weekly Summary Row ────────────────────────────────────────────────────────
+
+function WeeklySummary({ summary, goals }) {
+  if (!summary) return null;
+  const { workouts, avgCalories, weightChange } = summary;
+
+  const changeColor = weightChange === null ? 'var(--text-muted)'
+    : weightChange < 0 ? 'var(--green)'
+    : weightChange > 0 ? 'var(--orange)'
+    : 'var(--text-muted)';
+
+  return (
+    <div style={{ marginBottom: '1rem' }}>
+      <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+        This Week
+      </div>
+      <div className="weekly-summary-row">
+        <div className="weekly-stat">
+          <div className="weekly-stat-val" style={{ color: 'var(--violet)' }}>{workouts}</div>
+          <div className="weekly-stat-label">Workouts</div>
+          <div className="weekly-stat-sub">/ {goals?.workout_days_per_week ?? 4} goal</div>
+        </div>
+        <div className="weekly-stat">
+          <div className="weekly-stat-val" style={{ color: 'var(--orange)' }}>
+            {avgCalories > 0 ? avgCalories.toLocaleString() : '—'}
+          </div>
+          <div className="weekly-stat-label">Avg Cal/Day</div>
+          <div className="weekly-stat-sub">kcal average</div>
+        </div>
+        <div className="weekly-stat">
+          <div className="weekly-stat-val" style={{ color: changeColor }}>
+            {weightChange === null ? '—' : `${weightChange > 0 ? '+' : ''}${weightChange}`}
+          </div>
+          <div className="weekly-stat-label">Weight Δ</div>
+          <div className="weekly-stat-sub">lbs this week</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Minimal Mode Dashboard ────────────────────────────────────────────────────
 
 function MinimalDashboard({ data, user }) {
   const { updatePrefs } = usePreferences();
@@ -102,18 +282,21 @@ function MinimalDashboard({ data, user }) {
   );
 }
 
+// ── Main Dashboard ────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { isMinimal } = usePreferences();
-  const [data, setData]     = useState(null);
-  const [steps, setSteps]   = useState(() => parseInt(localStorage.getItem('steps_today') || '0'));
-  const [water, setWater]   = useState(0);
+  const [data, setData]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [steps, setSteps] = useState(() => parseInt(localStorage.getItem('steps_today') || '0'));
+  const [water, setWater] = useState(0);
 
   useEffect(() => {
     api.get('/dashboard').then(r => {
       setData(r.data);
       setWater(r.data.waterToday ?? 0);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const handleSteps = (v) => {
@@ -122,19 +305,16 @@ export default function Dashboard() {
     localStorage.setItem('steps_today', val);
   };
 
-  // Tap an empty cup → fill up to that cup. Tap a filled cup → un-fill it.
-  // Uses PUT /water to SET the day's total directly — no delta arithmetic needed.
   const tapCup = async (cupIndex) => {
     const isFilled = cupIndex < filledCups;
-    // Filled cup: remove it (target = cups before it). Empty cup: fill up to it.
     const targetOz = isFilled ? cupIndex * 8 : (cupIndex + 1) * 8;
     const prev = water;
-    setWater(targetOz); // optimistic
+    setWater(targetOz);
     try {
       const r = await api.put('/water', { amount_oz: targetOz });
       setWater(r.data.total_oz);
     } catch {
-      setWater(prev); // revert on failure
+      setWater(prev);
     }
   };
 
@@ -184,43 +364,59 @@ export default function Dashboard() {
       })()}
 
       {/* Stat cards */}
-      <div className="grid-4" style={{ marginBottom: '1rem' }}>
-        <div className="card stat-orange">
-          <div className="card-title">Calories</div>
-          <div className="card-value">{Math.round(n.calories ?? 0)}</div>
-          <div className="card-sub">/ {goals.calorie_goal} kcal</div>
-          <ProgressBar value={n.calories ?? 0} max={goals.calorie_goal} color="var(--orange)" />
+      {loading ? (
+        <div className="grid-4" style={{ marginBottom: '1rem' }}>
+          {[0,1,2,3].map(i => <SkeletonStat key={i} />)}
         </div>
-        <div className="card stat-indigo">
-          <div className="card-title">Protein</div>
-          <div className="card-value">{Math.round(n.protein ?? 0)}g</div>
-          <div className="card-sub">/ {goals.protein_goal}g</div>
-          <ProgressBar value={n.protein ?? 0} max={goals.protein_goal} color="var(--indigo)" />
+      ) : (
+        <div className="grid-4" style={{ marginBottom: '1rem' }}>
+          <div className="card stat-orange">
+            <div className="card-title">Calories</div>
+            <div className="card-value">{Math.round(n.calories ?? 0)}</div>
+            <div className="card-sub">/ {goals.calorie_goal} kcal</div>
+            <ProgressBar value={n.calories ?? 0} max={goals.calorie_goal} color="var(--orange)" />
+          </div>
+          <div className="card stat-indigo">
+            <div className="card-title">Protein</div>
+            <div className="card-value">{Math.round(n.protein ?? 0)}g</div>
+            <div className="card-sub">/ {goals.protein_goal}g</div>
+            <ProgressBar value={n.protein ?? 0} max={goals.protein_goal} color="var(--indigo)" />
+          </div>
+          <div className="card stat-green">
+            <div className="card-title">Steps</div>
+            <div className="card-value">{steps.toLocaleString()}</div>
+            <div className="card-sub">/ {(goals.steps_goal ?? 10000).toLocaleString()}</div>
+            <ProgressBar value={steps} max={goals.steps_goal ?? 10000} color="var(--green)" />
+            <NumberInput value={steps || ''} onChange={handleSteps} min={0} max={100000} step={500} placeholder="Log steps" />
+          </div>
+          <div className="card stat-violet">
+            <div className="card-title">Workouts</div>
+            <div className="card-value">{data?.workouts?.length ?? 0}</div>
+            <div className="card-sub">{data?.weeklyWorkouts ?? 0} this week</div>
+            <ProgressBar value={data?.weeklyWorkouts ?? 0} max={goals.workout_days_per_week ?? 4} color="var(--violet)" />
+          </div>
         </div>
-        <div className="card stat-green">
-          <div className="card-title">Steps</div>
-          <div className="card-value">{steps.toLocaleString()}</div>
-          <div className="card-sub">/ {(goals.steps_goal ?? 10000).toLocaleString()}</div>
-          <ProgressBar value={steps} max={goals.steps_goal ?? 10000} color="var(--green)" />
-          <NumberInput value={steps || ''} onChange={handleSteps} min={0} max={100000} step={500} placeholder="Log steps" />
-        </div>
-        <div className="card stat-violet">
-          <div className="card-title">Workouts</div>
-          <div className="card-value">{data?.workouts?.length ?? 0}</div>
-          <div className="card-sub">{data?.weeklyWorkouts ?? 0} this week</div>
-          <ProgressBar value={data?.weeklyWorkouts ?? 0} max={goals.workout_days_per_week ?? 4} color="var(--violet)" />
-        </div>
-      </div>
+      )}
+
+      {/* Weekly Summary */}
+      {!loading && <WeeklySummary summary={data?.weeklySummary} goals={goals} />}
 
       <div className="grid-2" style={{ marginBottom: '1rem' }}>
         {/* Macros + volume */}
         <div className="card">
           <div className="card-title">Today's Macros</div>
-          <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-            <MacroStat label="Protein" value={`${Math.round(n.protein ?? 0)}g`} color="var(--indigo)" />
-            <MacroStat label="Carbs"   value={`${Math.round(n.carbs ?? 0)}g`}   color="var(--green)"  />
-            <MacroStat label="Fat"     value={`${Math.round(n.fat ?? 0)}g`}     color="var(--yellow)" />
-          </div>
+          {loading ? (
+            <>
+              <Skeleton height={14} width="55%" radius={5} style={{ marginBottom: '0.5rem', marginTop: '0.5rem' }} />
+              <Skeleton height={14} width="40%" radius={5} />
+            </>
+          ) : (
+            <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+              <MacroStat label="Protein" value={`${Math.round(n.protein ?? 0)}g`} color="var(--indigo)" />
+              <MacroStat label="Carbs"   value={`${Math.round(n.carbs ?? 0)}g`}   color="var(--green)"  />
+              <MacroStat label="Fat"     value={`${Math.round(n.fat ?? 0)}g`}     color="var(--yellow)" />
+            </div>
+          )}
           {data?.latestWeight && (
             <>
               <hr className="divider" />
@@ -249,6 +445,12 @@ export default function Dashboard() {
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>Tap a cup to log 8oz</div>
         </div>
       </div>
+
+      {/* Active Program Widget */}
+      <ActiveProgramWidget />
+
+      {/* Recent PRs */}
+      {!loading && <RecentPRsStrip prs={data?.recentPRs} />}
 
       {/* Today's workouts */}
       {data?.workouts?.length > 0 && (

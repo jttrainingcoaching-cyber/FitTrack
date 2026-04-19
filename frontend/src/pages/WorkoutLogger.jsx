@@ -324,7 +324,21 @@ export default function WorkoutLogger() {
         await api.post(`/workouts/${w.data.id}/feeling`, feel).catch(() => {});
       }
 
-      addToast(`Workout saved! ${exercises.length} exercises logged 💪`, 'success');
+      // ── PR Celebration ───────────────────────────────────────────────────────
+      const newPRs = w.data.newPRs || [];
+      if (newPRs.length > 0) {
+        const names = newPRs.map(p => p.exercise).join(', ');
+        addToast(
+          `🏆 NEW PR${newPRs.length > 1 ? 's' : ''}! ${names}`,
+          'success'
+        );
+        setTimeout(() => {
+          addToast(`Workout saved! ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''} logged 💪`, 'success');
+        }, 900);
+      } else {
+        addToast(`Workout saved! ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''} logged 💪`, 'success');
+      }
+
       setName(''); setEx([]); setActivePanel(null); setSessionDuration(0);
       loadWorkouts();
     } catch {
