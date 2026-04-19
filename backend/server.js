@@ -24,6 +24,8 @@ app.use('/api/coach',        require('./routes/coach'));
 app.use('/api/insights',     require('./routes/insights'));
 app.use('/api/export',       require('./routes/export'));
 app.use('/api/preferences',  require('./routes/preferences'));
+app.use('/api/foods',        require('./routes/foods'));
+app.use('/api/programs',     require('./routes/programs'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

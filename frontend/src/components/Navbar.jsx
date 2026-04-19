@@ -13,6 +13,7 @@ const NAV_MAIN = [
 ];
 
 const NAV_MORE = [
+  { path: '/programs',      label: 'Programs',      icon: '📋' },
   { path: '/goals',         label: 'Goals',         icon: '🎯' },
   { path: '/body-stats',    label: 'Body Stats',    icon: '📏' },
   { path: '/calculator',    label: 'Calculator',    icon: '🧮' },
@@ -48,8 +49,8 @@ export default function Navbar() {
     { path: '/',          label: 'Home',      icon: '⊞' },
     { path: '/workouts',  label: 'Workouts',  icon: '🏋️' },
     { path: '/nutrition', label: 'Nutrition', icon: '🥗' },
+    { path: '/programs',  label: 'Programs',  icon: '📋' },
     { path: '/progress',  label: 'Progress',  icon: '📈' },
-    { path: '/guides',    label: 'Guides',    icon: '📚' },
     { path: '/settings',  label: 'Settings',  icon: '⚙️' },
   ];
 

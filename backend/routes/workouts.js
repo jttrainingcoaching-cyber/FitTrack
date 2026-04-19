@@ -5,6 +5,23 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 router.use(auth);
 
+// ── Personal Records table ───────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS personal_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    exercise_name TEXT NOT NULL,
+    weight REAL NOT NULL,
+    reps INTEGER,
+    one_rep_max REAL,
+    date TEXT NOT NULL,
+    workout_id INTEGER,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_pr_user_exercise
+    ON personal_records(user_id, exercise_name);
+`);
+
 router.get('/', (req, res) => {
   const workouts = db.prepare(`
     SELECT w.*,
@@ -249,6 +266,17 @@ router.get('/calorie-summary', (req, res) => {
   res.json(rows);
 });
 
+// GET /api/workouts/prs — all personal records for this user
+router.get('/prs', (req, res) => {
+  const prs = db.prepare(`
+    SELECT exercise_name, weight, reps, one_rep_max, date
+    FROM personal_records
+    WHERE user_id = ?
+    ORDER BY one_rep_max DESC
+  `).all(req.userId);
+  res.json(prs);
+});
+
 router.post('/', (req, res) => {
   const { type, name, date, notes, duration_seconds, exercises } = req.body;
   if (!type || !name) {
@@ -279,6 +307,32 @@ router.post('/', (req, res) => {
   });
 
   const id = transaction();
+
+  // ── Detect Personal Records ──────────────────────────────────────────────
+  const newPRs = [];
+  if (exercises && exercises.length) {
+    const workoutDate = req.body.date || new Date().toISOString().split('T')[0];
+    for (const ex of exercises) {
+      if (!ex.weight || ex.weight <= 0 || !ex.reps || ex.reps <= 0) continue;
+      // Epley 1RM formula: weight × (1 + reps/30)
+      const oneRepMax = Math.round(ex.weight * (1 + ex.reps / 30) * 10) / 10;
+      const existing = db.prepare(
+        'SELECT * FROM personal_records WHERE user_id = ? AND exercise_name = ?'
+      ).get(req.userId, ex.name);
+
+      if (!existing || oneRepMax > existing.one_rep_max) {
+        db.prepare(`
+          INSERT INTO personal_records (user_id, exercise_name, weight, reps, one_rep_max, date, workout_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(user_id, exercise_name) DO UPDATE SET
+            weight = excluded.weight, reps = excluded.reps,
+            one_rep_max = excluded.one_rep_max, date = excluded.date, workout_id = excluded.workout_id
+        `).run(req.userId, ex.name, ex.weight, ex.reps, oneRepMax, workoutDate, id);
+        newPRs.push({ exercise: ex.name, weight: ex.weight, reps: ex.reps, oneRepMax });
+      }
+    }
+  }
+
   const result = db.prepare(`
     SELECT w.*,
       json_group_array(json_object(
@@ -290,6 +344,7 @@ router.post('/', (req, res) => {
   `).get(id);
 
   result.exercises = JSON.parse(result.exercises).filter(e => e.id !== null);
+  result.newPRs = newPRs;
   res.status(201).json(result);
 });
 

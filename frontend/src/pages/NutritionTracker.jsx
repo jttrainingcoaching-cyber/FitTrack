@@ -145,6 +145,112 @@ function BarcodeScanner({ onFill }) {
   );
 }
 
+// ── Food Search ──────────────────────────────────────────────────────────────
+
+function FoodSearch({ onFill }) {
+  const [query, setQuery]     = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen]       = useState(false);
+
+  useEffect(() => {
+    if (!query || query.length < 2) { setResults([]); return; }
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/foods/search?q=${encodeURIComponent(query)}`);
+        setResults(res.data);
+      } catch { setResults([]); }
+      setLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const handlePick = (food) => {
+    onFill({
+      name:     food.name,
+      calories: food.calories,
+      protein:  food.protein,
+      carbs:    food.carbs,
+      fat:      food.fat,
+    });
+    setQuery('');
+    setResults([]);
+    setOpen(false);
+  };
+
+  if (!open) {
+    return (
+      <button
+        className="btn btn-secondary"
+        style={{ width: '100%', marginBottom: '0.5rem' }}
+        onClick={() => setOpen(true)}
+      >
+        🔍 Search Foods
+      </button>
+    );
+  }
+
+  return (
+    <div style={{
+      padding: '1rem', background: 'var(--bg-elevated)',
+      border: '1.5px solid var(--border)', borderRadius: 12,
+      marginBottom: '0.85rem',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>🔍 Search Foods</div>
+        <button onClick={() => { setOpen(false); setQuery(''); setResults([]); }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
+      </div>
+
+      <input
+        className="form-input"
+        type="text"
+        placeholder="Search: chicken breast, oats, banana…"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        autoFocus
+      />
+
+      {loading && (
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>Searching…</div>
+      )}
+
+      {results.length > 0 && (
+        <div style={{ marginTop: '0.5rem', maxHeight: 260, overflowY: 'auto' }}>
+          {results.map((food, i) => (
+            <button
+              key={i}
+              onClick={() => handlePick(food)}
+              style={{
+                width: '100%', textAlign: 'left', padding: '0.65rem 0.75rem',
+                background: 'var(--bg-card)', border: '1px solid var(--border)',
+                borderRadius: 8, marginBottom: '0.35rem', cursor: 'pointer',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)' }}>{food.name}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>per {food.serving}</div>
+              </div>
+              <div style={{ fontSize: '0.78rem', textAlign: 'right', flexShrink: 0 }}>
+                <span style={{ color: 'var(--orange)', fontWeight: 700 }}>{food.calories} kcal</span>
+                <div style={{ color: 'var(--text-muted)' }}>P{food.protein} C{food.carbs} F{food.fat}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!loading && query.length >= 2 && results.length === 0 && (
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
+          No results found. Try a different name or log manually.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Create Preset Form ────────────────────────────────────────────────────────
 
 function CreatePresetForm({ onSaved, onClose }) {
@@ -467,7 +573,8 @@ export default function NutritionTracker() {
         <div className="card">
           <div className="section-title">Custom Meal</div>
 
-          {/* Barcode scanner */}
+          {/* Food search + barcode */}
+          <FoodSearch onFill={fillFromBarcode} />
           <BarcodeScanner onFill={fillFromBarcode} />
 
           <div className="form-group">
