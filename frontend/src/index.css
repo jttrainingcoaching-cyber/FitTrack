@@ -882,11 +882,17 @@ body {
 .onboarding-wrap {
   min-height: 100dvh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;   /* was: center — caused button to be off-screen on short phones */
   justify-content: center;
-  padding: 1rem;
-  padding-top: calc(env(safe-area-inset-top) + 1rem);
+  padding: 2rem 1rem;
+  padding-top: calc(env(safe-area-inset-top) + 2rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 4rem);
   background: var(--bg);
+  overflow-y: auto;          /* ensure page is scrollable on short screens */
+}
+/* On tall-enough screens, re-center vertically */
+@media (min-height: 780px) {
+  .onboarding-wrap { align-items: center; }
 }
 .onboarding-card {
   width: 100%;

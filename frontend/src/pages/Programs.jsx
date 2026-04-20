@@ -15,11 +15,12 @@ const DIFFICULTY_BADGE = {
 };
 
 export default function Programs() {
-  const { showToast } = useToast();
-  const [programs, setPrograms]   = useState([]);
-  const [active, setActive]       = useState(null);
-  const [selected, setSelected]   = useState(null);
-  const [loading, setLoading]     = useState(true);
+  const { addToast } = useToast();   // was showToast — that doesn't exist in ToastContext
+  const [programs, setPrograms]       = useState([]);
+  const [active, setActive]           = useState(null);
+  const [selected, setSelected]       = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [scheduleCache, setScheduleCache] = useState({}); // keyed by program id
 
   useEffect(() => {
     Promise.all([
@@ -32,38 +33,55 @@ export default function Programs() {
     });
   }, []);
 
+  // Fetch Week-1 schedule for a program when its card is expanded
+  const loadSchedule = async (progId) => {
+    if (scheduleCache[progId] !== undefined) return; // already fetched
+    try {
+      const data = await api.get(`/programs/${progId}`).then(r => r.data);
+      setScheduleCache(prev => ({ ...prev, [progId]: data.schedule || [] }));
+    } catch {
+      setScheduleCache(prev => ({ ...prev, [progId]: [] }));
+    }
+  };
+
+  const handleCardClick = (prog) => {
+    const isOpening = selected?.id !== prog.id;
+    setSelected(isOpening ? prog : null);
+    if (isOpening) loadSchedule(prog.id);
+  };
+
   const startProgram = async (id) => {
     try {
       await api.post(`/programs/${id}/start`);
       const act = await api.get('/programs/active/today').then(r => r.data);
       setActive(act);
       setSelected(null);
-      showToast('Program started! 💪', 'success');
+      addToast('Program started! 💪', 'success');
     } catch {
-      showToast('Failed to start program', 'error');
+      addToast('Failed to start program', 'error');
     }
   };
 
   const quitProgram = async () => {
-    if (!confirm('Quit your current program? Progress will be lost.')) return;
+    if (!window.confirm('Quit your current program? Progress will be lost.')) return;
     await api.delete('/programs/active');
     setActive(null);
-    showToast('Program stopped', 'info');
+    addToast('Program stopped', 'success');
   };
 
   const advanceDay = async () => {
     try {
       const res = await api.post('/programs/active/advance').then(r => r.data);
       if (res.complete) {
-        showToast('🎉 Program complete! Incredible work!', 'success');
+        addToast('🎉 Program complete! Incredible work!', 'success');
         setActive(null);
       } else {
         const act = await api.get('/programs/active/today').then(r => r.data);
         setActive(act);
-        showToast('Day logged! Keep it up 🔥', 'success');
+        addToast('Day logged! Keep it up 🔥', 'success');
       }
     } catch {
-      showToast('Error advancing day', 'error');
+      addToast('Error advancing day', 'error');
     }
   };
 
@@ -107,7 +125,7 @@ export default function Programs() {
             <div className="today-workout">
               <div className="today-workout-title">Today: {active.today.name}</div>
               <div className="today-exercises">
-                {active.today.exercises.map((ex, i) => (
+                {(active.today.exercises || []).map((ex, i) => (
                   <div key={i} className="today-exercise-row">
                     <span className="today-ex-name">{ex.exercise_name}</span>
                     <span className="today-ex-detail">{ex.sets} × {ex.reps}</span>
@@ -132,66 +150,81 @@ export default function Programs() {
       </div>
 
       <div className="programs-grid">
-        {programs.map(prog => (
-          <div
-            key={prog.id}
-            className="program-card"
-            onClick={() => setSelected(selected?.id === prog.id ? null : prog)}
-          >
-            <div className="prog-card-top">
-              <div className="prog-card-info">
-                <div className="prog-card-name">{prog.name}</div>
-                <div className="prog-card-meta">
-                  {prog.days_per_week} days/week · {prog.duration_weeks} weeks
+        {programs.map(prog => {
+          const schedule = scheduleCache[prog.id]; // undefined = not yet loaded
+          const isOpen   = selected?.id === prog.id;
+
+          return (
+            <div
+              key={prog.id}
+              className="program-card"
+              onClick={() => handleCardClick(prog)}
+            >
+              <div className="prog-card-top">
+                <div className="prog-card-info">
+                  <div className="prog-card-name">{prog.name}</div>
+                  <div className="prog-card-meta">
+                    {prog.days_per_week} days/week · {prog.duration_weeks} weeks
+                  </div>
+                </div>
+                <div
+                  className="prog-difficulty-badge"
+                  style={{ background: DIFFICULTY_BADGE[prog.difficulty]?.bg || 'var(--indigo)' }}
+                >
+                  {prog.difficulty}
                 </div>
               </div>
-              <div
-                className="prog-difficulty-badge"
-                style={{ background: DIFFICULTY_BADGE[prog.difficulty]?.bg || 'var(--indigo)' }}
-              >
-                {prog.difficulty}
-              </div>
-            </div>
 
-            <p className="prog-card-desc">{prog.description}</p>
+              <p className="prog-card-desc">{prog.description}</p>
 
-            <div className="prog-card-footer">
-              <span
-                className="prog-goal-tag"
-                style={{ color: GOAL_COLOR[prog.goal] || 'var(--indigo)' }}
-              >
-                {prog.goal}
-              </span>
-              <span className="prog-expand">{selected?.id === prog.id ? '▲ Hide' : '▼ Preview'}</span>
-            </div>
-
-            {/* Expanded preview */}
-            {selected?.id === prog.id && (
-              <div className="prog-preview" onClick={e => e.stopPropagation()}>
-                <div className="prog-preview-title">Week 1 Schedule</div>
-                {prog.schedule?.map((day, i) => (
-                  day.type !== 'Rest' && (
-                    <div key={i} className="prog-preview-day">
-                      <div className="prog-preview-day-name">Day {day.day}: {day.name}</div>
-                      {day.exercises.map((ex, j) => (
-                        <div key={j} className="prog-preview-ex">
-                          {ex.exercise_name} — {ex.sets}×{ex.reps}
-                        </div>
-                      ))}
-                    </div>
-                  )
-                ))}
-                <button
-                  className="btn btn-primary"
-                  style={{ width: '100%', marginTop: '1rem' }}
-                  onClick={() => startProgram(prog.id)}
+              <div className="prog-card-footer">
+                <span
+                  className="prog-goal-tag"
+                  style={{ color: GOAL_COLOR[prog.goal] || 'var(--indigo)' }}
                 >
-                  {active?.program?.id === prog.id ? '↺ Restart Program' : 'Start This Program'}
-                </button>
+                  {prog.goal}
+                </span>
+                <span className="prog-expand">{isOpen ? '▲ Hide' : '▼ Preview'}</span>
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* Expanded preview — loaded on demand */}
+              {isOpen && (
+                <div className="prog-preview" onClick={e => e.stopPropagation()}>
+                  <div className="prog-preview-title">Week 1 Schedule</div>
+                  {schedule === undefined ? (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
+                      Loading schedule…
+                    </div>
+                  ) : schedule.filter(d => d.type !== 'Rest').length === 0 ? (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
+                      No schedule details available.
+                    </div>
+                  ) : (
+                    schedule.map((day, i) => (
+                      day.type !== 'Rest' && (
+                        <div key={i} className="prog-preview-day">
+                          <div className="prog-preview-day-name">Day {day.day}: {day.name}</div>
+                          {(day.exercises || []).map((ex, j) => (
+                            <div key={j} className="prog-preview-ex">
+                              {ex.exercise_name} — {ex.sets}×{ex.reps}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    ))
+                  )}
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: '100%', marginTop: '1rem' }}
+                    onClick={() => startProgram(prog.id)}
+                  >
+                    {active?.program?.id === prog.id ? '↺ Restart Program' : 'Start This Program'}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

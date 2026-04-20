@@ -1,32 +1,37 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 
 const GOALS = [
-  { id: 'lose_weight',      label: 'Lose Weight',       emoji: '🔥', desc: 'Burn fat, feel lighter' },
-  { id: 'build_muscle',     label: 'Build Muscle',      emoji: '💪', desc: 'Get stronger and bigger' },
-  { id: 'maintain',         label: 'Stay Fit',          emoji: '⚖️', desc: 'Maintain current fitness' },
-  { id: 'improve_endurance',label: 'Improve Endurance', emoji: '🏃', desc: 'Run longer, go harder' },
-  { id: 'improve_strength', label: 'Build Strength',    emoji: '🏋️', desc: 'Lift heavier, get powerful' },
+  { id: 'lose_weight',       label: 'Lose Weight',       emoji: '🔥', desc: 'Burn fat, feel lighter' },
+  { id: 'build_muscle',      label: 'Build Muscle',      emoji: '💪', desc: 'Get stronger and bigger' },
+  { id: 'maintain',          label: 'Stay Fit',          emoji: '⚖️', desc: 'Maintain current fitness' },
+  { id: 'improve_endurance', label: 'Improve Endurance', emoji: '🏃', desc: 'Run longer, go harder' },
+  { id: 'improve_strength',  label: 'Build Strength',    emoji: '🏋️', desc: 'Lift heavier, get powerful' },
 ];
 
 const ACTIVITY_LEVELS = [
-  { id: 'sedentary',    label: 'Sedentary',        desc: 'Little to no exercise',       multiplier: 1.2 },
-  { id: 'light',        label: 'Lightly Active',   desc: '1–3 days/week',                multiplier: 1.375 },
-  { id: 'moderate',     label: 'Moderately Active',desc: '3–5 days/week',                multiplier: 1.55 },
-  { id: 'very_active',  label: 'Very Active',      desc: '6–7 days/week',                multiplier: 1.725 },
-  { id: 'extra_active', label: 'Athlete',          desc: 'Twice daily / physical job',   multiplier: 1.9 },
+  { id: 'sedentary',    label: 'Sedentary',         desc: 'Little to no exercise',       multiplier: 1.2   },
+  { id: 'light',        label: 'Lightly Active',    desc: '1–3 days/week',               multiplier: 1.375 },
+  { id: 'moderate',     label: 'Moderately Active', desc: '3–5 days/week',               multiplier: 1.55  },
+  { id: 'very_active',  label: 'Very Active',       desc: '6–7 days/week',               multiplier: 1.725 },
+  { id: 'extra_active', label: 'Athlete',            desc: 'Twice daily / physical job', multiplier: 1.9   },
 ];
 
-function calcMacros(weight, height, age, gender, activity, goal) {
-  // Mifflin-St Jeor BMR
+// Uses lbs + inches as inputs (US units), converts internally for Mifflin-St Jeor
+function calcMacros(weightLbs, heightIn, age, gender, activity, goal) {
+  const weight_kg = weightLbs / 2.20462;
+  const height_cm = heightIn * 2.54;
+
   let bmr;
   if (gender === 'male') {
-    bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+    bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age + 5;
   } else {
-    bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+    bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age - 161;
   }
+
   const actObj = ACTIVITY_LEVELS.find(a => a.id === activity) || ACTIVITY_LEVELS[2];
   let tdee = Math.round(bmr * actObj.multiplier);
 
@@ -35,35 +40,35 @@ function calcMacros(weight, height, age, gender, activity, goal) {
   if (goal === 'build_muscle')     calories = Math.round(tdee * 1.1);
   if (goal === 'improve_strength') calories = Math.round(tdee * 1.05);
 
-  // Protein: 0.8–1g per lb of body weight
-  const protein = Math.round(weight * 2.2 * 0.85);
-  const fat      = Math.round((calories * 0.25) / 9);
-  const carbs    = Math.round((calories - protein * 4 - fat * 9) / 4);
+  const protein = Math.round(weightLbs * 0.85);    // ~0.85g per lb bodyweight
+  const fat     = Math.round((calories * 0.25) / 9);
+  const carbs   = Math.round((calories - protein * 4 - fat * 9) / 4);
 
   return { calories, protein, carbs: Math.max(carbs, 50), fat };
 }
 
 export default function Onboarding() {
-  const { user, login } = useAuth();
-  const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  const { user, login }   = useAuth();
+  const { addToast }      = useToast();
+  const navigate          = useNavigate();
+  const [step, setStep]   = useState(1);
   const [saving, setSaving] = useState(false);
 
-  const [goal, setGoal]           = useState('');
-  const [gender, setGender]       = useState('male');
-  const [age, setAge]             = useState('');
-  const [heightCm, setHeightCm]   = useState('');
-  const [weightKg, setWeightKg]   = useState('');
-  const [activity, setActivity]   = useState('moderate');
-  const [macros, setMacros]       = useState(null);
+  const [goal, setGoal]         = useState('');
+  const [gender, setGender]     = useState('male');
+  const [age, setAge]           = useState('');
+  const [heightIn, setHeightIn] = useState('');   // inches
+  const [weightLbs, setWeightLbs] = useState(''); // lbs
+  const [activity, setActivity] = useState('moderate');
+  const [macros, setMacros]     = useState(null);
 
   const goNext = () => setStep(s => s + 1);
   const goBack = () => setStep(s => s - 1);
 
   const handleStatsNext = () => {
-    if (!age || !heightCm || !weightKg) return;
+    if (!age || !heightIn || !weightLbs) return;
     const calculated = calcMacros(
-      parseFloat(weightKg), parseFloat(heightCm),
+      parseFloat(weightLbs), parseFloat(heightIn),
       parseInt(age), gender, activity, goal
     );
     setMacros(calculated);
@@ -73,24 +78,40 @@ export default function Onboarding() {
   const handleFinish = async () => {
     setSaving(true);
     try {
-      // Save profile
+      // 1. Save profile (height stored as cm internally)
       await api.put('/profile', {
         gender,
-        height_cm: parseFloat(heightCm),
+        height_cm: Math.round(parseFloat(heightIn) * 2.54 * 10) / 10,
         fitness_goal: goal,
         activity_level: activity,
       });
-      // Save body weight
-      await api.post('/bodyweight', { weight: parseFloat(weightKg), date: new Date().toISOString().split('T')[0] });
-      // Save goals/macros
-      await api.put('/goals', macros);
-      // Mark onboarding complete
+
+      // 2. Save starting body weight (lbs — same unit used throughout the app)
+      await api.post('/bodyweight', {
+        weight: parseFloat(weightLbs),
+        date: new Date().toISOString().split('T')[0],
+      });
+
+      // 3. Save macro/calorie goals — use the correct field names the endpoint expects
+      await api.put('/goals', {
+        calorie_goal:        macros.calories,
+        protein_goal:        macros.protein,
+        carbs_goal:          macros.carbs,
+        fat_goal:            macros.fat,
+        steps_goal:          10000,
+        water_goal_oz:       64,
+        workout_days_per_week: 4,
+      });
+
+      // 4. Mark onboarding complete on the server
       await api.post('/auth/complete-onboarding');
-      // Update local user state
+
+      // 5. Update local user state so the redirect in PrivateRoute fires
       login({ ...user, onboarding_complete: 1 });
       navigate('/');
     } catch (err) {
-      console.error(err);
+      console.error('Onboarding finish error:', err);
+      addToast('Something went wrong saving your profile. Please try again.', 'error');
     }
     setSaving(false);
   };
@@ -105,7 +126,7 @@ export default function Onboarding() {
           ))}
         </div>
 
-        {/* ── Step 1: Welcome ── */}
+        {/* ── Step 1: Goal Selection ── */}
         {step === 1 && (
           <div className="onboarding-step">
             <div className="onboarding-emoji">👋</div>
@@ -128,7 +149,11 @@ export default function Onboarding() {
                 </button>
               ))}
             </div>
-            <button className="btn btn-primary onboarding-next" disabled={!goal} onClick={goNext}>
+            <button
+              className="btn btn-primary onboarding-next"
+              disabled={!goal}
+              onClick={goNext}
+            >
               Continue →
             </button>
           </div>
@@ -154,12 +179,12 @@ export default function Onboarding() {
                 <input type="number" placeholder="25" value={age} onChange={e => setAge(e.target.value)} min="13" max="100" />
               </div>
               <div className="onboarding-field">
-                <label>Height (cm)</label>
-                <input type="number" placeholder="175" value={heightCm} onChange={e => setHeightCm(e.target.value)} min="100" max="250" />
+                <label>Height (inches)</label>
+                <input type="number" placeholder="70  (e.g. 5′10″ = 70 in)" value={heightIn} onChange={e => setHeightIn(e.target.value)} min="48" max="96" />
               </div>
               <div className="onboarding-field">
-                <label>Weight (kg)</label>
-                <input type="number" placeholder="75" value={weightKg} onChange={e => setWeightKg(e.target.value)} min="30" max="300" />
+                <label>Weight (lbs)</label>
+                <input type="number" placeholder="175" value={weightLbs} onChange={e => setWeightLbs(e.target.value)} min="66" max="660" />
               </div>
             </div>
 
@@ -179,7 +204,11 @@ export default function Onboarding() {
 
             <div className="onboarding-nav">
               <button className="btn btn-ghost" onClick={goBack}>← Back</button>
-              <button className="btn btn-primary" disabled={!age || !heightCm || !weightKg} onClick={handleStatsNext}>
+              <button
+                className="btn btn-primary"
+                disabled={!age || !heightIn || !weightLbs}
+                onClick={handleStatsNext}
+              >
                 Calculate →
               </button>
             </div>
@@ -257,8 +286,13 @@ export default function Onboarding() {
               <div className="final-check">✅ Goal set: <strong>{GOALS.find(g => g.id === goal)?.label}</strong></div>
               <div className="final-check">✅ Daily calories: <strong>{macros?.calories} kcal</strong></div>
               <div className="final-check">✅ Protein target: <strong>{macros?.protein}g</strong></div>
+              <div className="final-check">✅ Starting weight: <strong>{weightLbs} lbs</strong></div>
             </div>
-            <button className="btn btn-primary onboarding-next" onClick={handleFinish} disabled={saving}>
+            <button
+              className="btn btn-primary onboarding-next"
+              onClick={handleFinish}
+              disabled={saving}
+            >
               {saving ? 'Saving…' : 'Go to Dashboard 🎉'}
             </button>
           </div>

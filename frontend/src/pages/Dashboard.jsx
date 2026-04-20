@@ -56,11 +56,14 @@ function ActiveProgramWidget() {
     </div>
   );
 
-  if (!prog || !prog.program) return null;
+  // No active program or done — hide widget entirely
+  if (!prog || !prog.active || !prog.program || prog.done) return null;
 
-  const { program, today_workout, day_number, total_days } = prog;
-  const pct = total_days > 0 ? Math.round((day_number / total_days) * 100) : 0;
-  const isRest = !today_workout || today_workout.is_rest_day;
+  // API shape: { active, program, userProgram, today, completedDays, progressPercent }
+  const { program, today: todayWorkout, userProgram, progressPercent } = prog;
+  const totalDays = (program.duration_weeks ?? 0) * 7;
+  const dayNumber = ((userProgram?.current_week ?? 1) - 1) * 7 + (userProgram?.current_day ?? 1);
+  const isRest    = !todayWorkout || todayWorkout.type === 'Rest';
 
   return (
     <div className="card" style={{ marginBottom: '1rem', borderColor: 'rgba(99,102,241,0.35)', background: 'rgba(99,102,241,0.04)' }}>
@@ -79,11 +82,11 @@ function ActiveProgramWidget() {
       {/* Progress bar */}
       <div style={{ marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
-          <span>Day {day_number} of {total_days}</span>
-          <span>{pct}% complete</span>
+          <span>Day {dayNumber}{totalDays > 0 ? ` of ${totalDays}` : ''}</span>
+          <span>{progressPercent ?? 0}% complete</span>
         </div>
         <div className="prog-progress-bar">
-          <div className="prog-progress-fill" style={{ width: `${pct}%` }} />
+          <div className="prog-progress-fill" style={{ width: `${progressPercent ?? 0}%` }} />
         </div>
       </div>
 
@@ -98,21 +101,20 @@ function ActiveProgramWidget() {
       ) : (
         <div>
           <div style={{ fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.4rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Today · {today_workout.name}
+            Today · {todayWorkout?.name}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            {(today_workout.exercises || []).slice(0, 4).map((ex, i) => (
+            {(todayWorkout?.exercises || []).slice(0, 4).map((ex, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0.7rem', background: 'var(--bg-elevated)', borderRadius: 8 }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{ex.name}</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{ex.exercise_name}</span>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                   {ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ex.sets ? `${ex.sets} sets` : ''}
-                  {ex.weight ? ` @ ${ex.weight}lbs` : ''}
                 </span>
               </div>
             ))}
-            {(today_workout.exercises || []).length > 4 && (
+            {(todayWorkout?.exercises || []).length > 4 && (
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '0.3rem' }}>
-                +{today_workout.exercises.length - 4} more exercises
+                +{todayWorkout.exercises.length - 4} more exercises
               </div>
             )}
           </div>
