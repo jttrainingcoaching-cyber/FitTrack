@@ -944,10 +944,159 @@ body {
 .goal-label { font-weight: 700; font-size: 0.9rem; color: var(--text); }
 .goal-desc { font-size: 0.75rem; color: var(--text-muted); }
 
+/* kept for fallback usage in other forms */
 .onboarding-fields { display: flex; flex-direction: column; gap: 0.75rem; }
 .onboarding-field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.35rem; }
 .onboarding-field input { width: 100%; }
 
+/* ── Unit System Toggle ── */
+.unit-system-toggle {
+  display: flex;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 1.5rem;
+}
+.unit-system-toggle button {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: all 0.15s;
+  letter-spacing: -0.01em;
+}
+.unit-system-toggle button.active {
+  background: var(--indigo);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.35);
+}
+
+/* ── Gender Cards ── */
+.gender-cards {
+  display: flex;
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+}
+.gender-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1rem 0.75rem;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.gender-card:hover { border-color: rgba(99,102,241,0.5); }
+.gender-card.selected {
+  border-color: var(--indigo);
+  background: rgba(99,102,241,0.1);
+}
+.gender-card-icon { font-size: 2rem; line-height: 1; color: var(--text-muted); }
+.gender-card.selected .gender-card-icon { color: var(--indigo); }
+.gender-card-text { font-size: 0.875rem; font-weight: 700; color: var(--text-muted); }
+.gender-card.selected .gender-card-text { color: var(--indigo); }
+
+/* ── Stat Input Cards ── */
+.stat-input-row {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+.stat-input-card {
+  flex: 1;
+  min-width: 68px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 0.9rem 0.5rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  cursor: text;
+  transition: border-color 0.15s, background 0.15s;
+}
+.stat-input-card.wide { flex: 1.6; }
+.stat-input-card:focus-within {
+  border-color: var(--indigo);
+  background: rgba(99,102,241,0.06);
+}
+.sic-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
+}
+.sic-value {
+  width: 100%;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+  -moz-appearance: textfield;
+  font-family: inherit;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.sic-value::-webkit-outer-spin-button,
+.sic-value::-webkit-inner-spin-button { -webkit-appearance: none; }
+.sic-value::placeholder { color: var(--border); }
+.sic-unit {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+[data-theme="light"] .sic-value::placeholder { color: #d0d0e0; }
+
+/* ── Activity List (redesigned) ── */
+.activity-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.25rem; }
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.activity-item:hover { border-color: rgba(99,102,241,0.4); }
+.activity-item.selected { border-color: var(--indigo); background: rgba(99,102,241,0.08); }
+.activity-emoji { font-size: 1.3rem; flex-shrink: 0; }
+.activity-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.activity-label { font-weight: 700; font-size: 0.875rem; color: var(--text); }
+.activity-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.05rem; }
+.activity-check {
+  font-size: 0.9rem;
+  color: var(--indigo);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* old toggle kept for non-onboarding use */
 .gender-toggle { display: flex; gap: 0.5rem; }
 .gender-toggle button {
   flex: 1; padding: 0.6rem;
@@ -959,21 +1108,6 @@ body {
   transition: all 0.15s;
 }
 .gender-toggle button.active { border-color: var(--indigo); color: var(--indigo); background: rgba(99,102,241,0.1); }
-
-.activity-list { display: flex; flex-direction: column; gap: 0.4rem; }
-.activity-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 0.7rem 0.9rem;
-  background: var(--bg-elevated);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer; text-align: left;
-  transition: all 0.15s;
-}
-.activity-item:hover { border-color: var(--indigo); }
-.activity-item.selected { border-color: var(--indigo); background: rgba(99,102,241,0.1); }
-.activity-label { font-weight: 700; font-size: 0.875rem; color: var(--text); }
-.activity-desc { font-size: 0.75rem; color: var(--text-muted); }
 
 .onboarding-nav { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
 .onboarding-nav .btn { flex: 1; padding: 0.75rem; }
