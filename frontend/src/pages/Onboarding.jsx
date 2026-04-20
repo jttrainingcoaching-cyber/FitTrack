@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -20,31 +20,128 @@ const ACTIVITY_LEVELS = [
   { id: 'extra_active', emoji: '🏆', label: 'Athlete',           desc: 'Twice daily / physical job', multiplier: 1.9   },
 ];
 
-// BMR uses metric internally; all inputs converted before calling
 function calcMacros(weightLbs, heightIn, age, gender, activity, goal) {
-  const weight_kg = weightLbs / 2.20462;
-  const height_cm = heightIn * 2.54;
-
+  const wKg = weightLbs / 2.20462;
+  const hCm = heightIn * 2.54;
   let bmr = gender === 'male'
-    ? 10 * weight_kg + 6.25 * height_cm - 5 * age + 5
-    : 10 * weight_kg + 6.25 * height_cm - 5 * age - 161;
-
+    ? 10 * wKg + 6.25 * hCm - 5 * age + 5
+    : 10 * wKg + 6.25 * hCm - 5 * age - 161;
   const actObj = ACTIVITY_LEVELS.find(a => a.id === activity) || ACTIVITY_LEVELS[2];
-  let calories = Math.round(bmr * actObj.multiplier);
-
-  if (goal === 'lose_weight')      calories = Math.round(calories * 0.8);
-  if (goal === 'build_muscle')     calories = Math.round(calories * 1.1);
-  if (goal === 'improve_strength') calories = Math.round(calories * 1.05);
-
+  let cal = Math.round(bmr * actObj.multiplier);
+  if (goal === 'lose_weight')      cal = Math.round(cal * 0.8);
+  if (goal === 'build_muscle')     cal = Math.round(cal * 1.1);
+  if (goal === 'improve_strength') cal = Math.round(cal * 1.05);
   const protein = Math.round(weightLbs * 0.85);
-  const fat     = Math.round((calories * 0.25) / 9);
-  const carbs   = Math.round((calories - protein * 4 - fat * 9) / 4);
-
-  return { calories, protein, carbs: Math.max(carbs, 50), fat };
+  const fat     = Math.round((cal * 0.25) / 9);
+  const carbs   = Math.round((cal - protein * 4 - fat * 9) / 4);
+  return { calories: cal, protein, carbs: Math.max(carbs, 50), fat };
 }
 
-// ── Stat Input Card ───────────────────────────────────────────────────────────
-function StatCard({ label, value, onChange, unit, min, max, step = 1, placeholder, wide }) {
+// ── Drum / Scroll Picker ──────────────────────────────────────────────────────
+const ITEM_H  = 44;  // px height of each row
+const VISIBLE = 5;   // rows shown
+const PAD     = Math.floor(VISIBLE / 2); // blank rows top/bottom so endpoints can center
+
+function DrumPicker({ value, onChange, min, max, step = 1, label, unit, wide }) {
+  const items = useMemo(() => {
+    const arr = [];
+    for (let v = min; v <= max; v += step) arr.push(v);
+    return arr;
+  }, [min, max, step]);
+
+  const listRef   = useRef(null);
+  const timerRef  = useRef(null);
+  const busy      = useRef(false);  // suppress re-entrant scroll-to-value
+
+  // Set initial scroll position (synchronous, no animation, before first paint)
+  useLayoutEffect(() => {
+    const idx = items.indexOf(value);
+    if (idx >= 0 && listRef.current) {
+      listRef.current.scrollTop = idx * ITEM_H;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When value changes externally (e.g. unit conversion), animate scroll
+  const prevValue = useRef(value);
+  useEffect(() => {
+    if (prevValue.current === value) return;
+    prevValue.current = value;
+    if (busy.current || !listRef.current) return;
+    const idx = items.indexOf(value);
+    if (idx < 0) return;
+    busy.current = true;
+    listRef.current.scrollTo({ top: idx * ITEM_H, behavior: 'smooth' });
+    setTimeout(() => { busy.current = false; }, 450);
+  }, [value, items]);
+
+  // Detect scroll end, snap, update state
+  const handleScroll = useCallback(() => {
+    if (busy.current) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      if (!listRef.current) return;
+      const idx = Math.round(listRef.current.scrollTop / ITEM_H);
+      const clamped = Math.max(0, Math.min(items.length - 1, idx));
+      // Snap to exact position
+      busy.current = true;
+      listRef.current.scrollTo({ top: clamped * ITEM_H, behavior: 'smooth' });
+      setTimeout(() => { busy.current = false; }, 350);
+      onChange(items[clamped]);
+    }, 120);
+  }, [items, onChange]);
+
+  // Click an item to jump to it
+  const handleClick = useCallback((v, idx) => {
+    if (busy.current) return;
+    onChange(v);
+    busy.current = true;
+    listRef.current?.scrollTo({ top: idx * ITEM_H, behavior: 'smooth' });
+    setTimeout(() => { busy.current = false; }, 400);
+  }, [onChange]);
+
+  return (
+    <div className={`drum-wrap${wide ? ' wide' : ''}`}>
+      <div className="drum-label">{label}</div>
+      <div className="drum-outer">
+        {/* Center highlight box */}
+        <div className="drum-selection" />
+        {/* Fade gradients */}
+        <div className="drum-fade drum-fade-top" />
+        <div className="drum-fade drum-fade-bottom" />
+        {/* Scrollable list */}
+        <div
+          ref={listRef}
+          className="drum-scroll"
+          onScroll={handleScroll}
+          style={{ height: ITEM_H * VISIBLE }}
+        >
+          {/* top padding */}
+          {Array.from({ length: PAD }).map((_, i) => (
+            <div key={`pt${i}`} className="drum-item drum-pad" style={{ height: ITEM_H }} />
+          ))}
+          {items.map((v, i) => (
+            <div
+              key={v}
+              className={`drum-item${v === value ? ' drum-sel' : ''}`}
+              style={{ height: ITEM_H }}
+              onClick={() => handleClick(v, i)}
+            >
+              {v}
+            </div>
+          ))}
+          {/* bottom padding */}
+          {Array.from({ length: PAD }).map((_, i) => (
+            <div key={`pb${i}`} className="drum-item drum-pad" style={{ height: ITEM_H }} />
+          ))}
+        </div>
+      </div>
+      {unit && <div className="drum-unit">{unit}</div>}
+    </div>
+  );
+}
+
+// ── Macro Adjust Card (Step 3 only) ──────────────────────────────────────────
+function StatCard({ label, value, onChange, unit, min, max, step = 1, wide }) {
   return (
     <div className={`stat-input-card${wide ? ' wide' : ''}`}>
       <div className="sic-label">{label}</div>
@@ -57,7 +154,6 @@ function StatCard({ label, value, onChange, unit, min, max, step = 1, placeholde
         min={min}
         max={max}
         step={step}
-        placeholder={placeholder ?? '—'}
       />
       {unit && <div className="sic-unit">{unit}</div>}
     </div>
@@ -76,47 +172,48 @@ export default function Onboarding() {
   // Step 1
   const [goal, setGoal] = useState('');
 
-  // Step 2
-  const [unitSystem, setUnitSystem] = useState('imperial'); // 'imperial' | 'metric'
+  // Step 2 — all values are numbers with sensible defaults
+  const [unitSystem, setUnitSystem] = useState('imperial');
   const [gender, setGender]         = useState('male');
-  const [age, setAge]               = useState('');
-  const [heightFt, setHeightFt]     = useState('');       // imperial
-  const [heightInPart, setHeightInPart] = useState('');   // imperial (0-11)
-  const [heightCm, setHeightCm]     = useState('');       // metric
-  const [weight, setWeight]         = useState('');       // lbs or kg per unitSystem
+  const [age, setAge]               = useState(25);
+  const [heightFt, setHeightFt]     = useState(5);
+  const [heightIn, setHeightIn]     = useState(8);    // 0-11 inches
+  const [heightCm, setHeightCm]     = useState(173);  // metric
+  const [weightVal, setWeightVal]   = useState(175);  // lbs or kg per unit system
   const [activity, setActivity]     = useState('moderate');
 
   // Step 3
   const [macros, setMacros] = useState(null);
 
-  // Derived helpers — always returns lbs / total inches / cm for saving
-  const getWeightLbs = () => {
-    const w = parseFloat(weight) || 0;
-    return unitSystem === 'imperial' ? w : w * 2.20462;
-  };
-  const getHeightInTotal = () => {
-    if (unitSystem === 'imperial') {
-      return (parseInt(heightFt) || 0) * 12 + (parseInt(heightInPart) || 0);
-    }
-    return (parseFloat(heightCm) || 0) / 2.54;
-  };
+  // ── Derived unit helpers ───────────────���──────────────────────────────────
+  const getWeightLbs = () =>
+    unitSystem === 'imperial' ? weightVal : Math.round(weightVal * 2.20462 * 10) / 10;
+  const getHeightInTotal = () =>
+    unitSystem === 'imperial' ? heightFt * 12 + heightIn : heightCm / 2.54;
   const getHeightCmForProfile = () =>
-    unitSystem === 'metric'
-      ? parseFloat(heightCm) || 0
-      : getHeightInTotal() * 2.54;
+    unitSystem === 'metric' ? heightCm : (heightFt * 12 + heightIn) * 2.54;
 
-  const heightValid = unitSystem === 'imperial' ? !!heightFt : !!heightCm;
-  const statsValid  = !!age && heightValid && !!weight;
+  // ── Unit system switch with auto-conversion ───────────────────────────────
+  const switchUnit = (newSys) => {
+    if (newSys === unitSystem) return;
+    if (newSys === 'metric') {
+      setWeightVal(Math.max(30, Math.min(200, Math.round(weightVal / 2.20462))));
+      const totalIn = heightFt * 12 + heightIn;
+      setHeightCm(Math.max(140, Math.min(230, Math.round(totalIn * 2.54))));
+    } else {
+      setWeightVal(Math.max(80, Math.min(500, Math.round(weightVal * 2.20462))));
+      const totalIn = Math.round(heightCm / 2.54);
+      setHeightFt(Math.max(3, Math.min(8, Math.floor(totalIn / 12))));
+      setHeightIn(Math.max(0, Math.min(11, totalIn % 12)));
+    }
+    setUnitSystem(newSys);
+  };
 
   const goNext = () => setStep(s => s + 1);
   const goBack = () => setStep(s => s - 1);
 
   const handleStatsNext = () => {
-    if (!statsValid) return;
-    setMacros(calcMacros(
-      getWeightLbs(), getHeightInTotal(),
-      parseInt(age), gender, activity, goal
-    ));
+    setMacros(calcMacros(getWeightLbs(), getHeightInTotal(), age, gender, activity, goal));
     goNext();
   };
 
@@ -152,32 +249,29 @@ export default function Onboarding() {
     setSaving(false);
   };
 
-  // Weight display label for final checklist
   const weightDisplay = unitSystem === 'imperial'
-    ? `${weight} lbs`
-    : `${weight} kg (${Math.round(getWeightLbs())} lbs)`;
+    ? `${weightVal} lbs`
+    : `${weightVal} kg (${Math.round(getWeightLbs())} lbs)`;
 
   return (
     <div className="onboarding-wrap">
       <div className="onboarding-card">
 
-        {/* ── Progress dots ── */}
+        {/* Progress dots */}
         <div className="onboarding-dots">
           {[1, 2, 3, 4].map(i => (
             <div key={i} className={`onboarding-dot ${step >= i ? 'active' : ''}`} />
           ))}
         </div>
 
-        {/* ══════════════════════════════════════════
-            STEP 1 — Goal Selection
-        ══════════════════════════════════════════ */}
+        {/* ══ STEP 1 — Goal ══ */}
         {step === 1 && (
           <div className="onboarding-step">
             <div className="onboarding-emoji">👋</div>
             <h1>Welcome to FitTrack</h1>
             <p className="onboarding-sub">
-              Hey {user?.username}! Let's take 60 seconds to personalize the
-              app so your goals, macros, and plans are set up perfectly for you.
+              Hey {user?.username}! Let's take 60 seconds to personalize the app so
+              your goals, macros, and plans are set up perfectly for you.
             </p>
             <p className="onboarding-label">What's your main goal?</p>
             <div className="goal-grid">
@@ -193,117 +287,74 @@ export default function Onboarding() {
                 </button>
               ))}
             </div>
-            <button
-              className="btn btn-primary onboarding-next"
-              disabled={!goal}
-              onClick={goNext}
-            >
+            <button className="btn btn-primary onboarding-next" disabled={!goal} onClick={goNext}>
               Continue →
             </button>
           </div>
         )}
 
-        {/* ══════════════════════════════════════════
-            STEP 2 — Body Stats (redesigned)
-        ══════════════════════════════════════════ */}
+        {/* ══ STEP 2 — Body Stats ══ */}
         {step === 2 && (
           <div className="onboarding-step">
             <div className="onboarding-emoji">📏</div>
             <h1>Your Stats</h1>
             <p className="onboarding-sub">
-              Used to calculate your personalized calorie and macro targets.
+              Scroll each wheel to set your measurements. Used to calculate your
+              personalized calorie and macro targets.
             </p>
 
-            {/* ── Measurement system toggle ── */}
+            {/* Unit system toggle */}
             <div className="unit-system-toggle">
-              <button
-                className={unitSystem === 'imperial' ? 'active' : ''}
-                onClick={() => setUnitSystem('imperial')}
-              >
+              <button className={unitSystem === 'imperial' ? 'active' : ''} onClick={() => switchUnit('imperial')}>
                 🇺🇸 Imperial
               </button>
-              <button
-                className={unitSystem === 'metric' ? 'active' : ''}
-                onClick={() => setUnitSystem('metric')}
-              >
+              <button className={unitSystem === 'metric' ? 'active' : ''} onClick={() => switchUnit('metric')}>
                 📐 Metric
               </button>
             </div>
 
-            {/* ── Gender ── */}
+            {/* Gender */}
             <p className="onboarding-label">Gender</p>
             <div className="gender-cards">
-              <button
-                className={`gender-card ${gender === 'male' ? 'selected' : ''}`}
-                onClick={() => setGender('male')}
-              >
+              <button className={`gender-card ${gender === 'male' ? 'selected' : ''}`} onClick={() => setGender('male')}>
                 <span className="gender-card-icon">♂</span>
                 <span className="gender-card-text">Male</span>
               </button>
-              <button
-                className={`gender-card ${gender === 'female' ? 'selected' : ''}`}
-                onClick={() => setGender('female')}
-              >
+              <button className={`gender-card ${gender === 'female' ? 'selected' : ''}`} onClick={() => setGender('female')}>
                 <span className="gender-card-icon">♀</span>
                 <span className="gender-card-text">Female</span>
               </button>
             </div>
 
-            {/* ── Stat input cards ── */}
+            {/* Drum pickers */}
             <p className="onboarding-label">Measurements</p>
-            <div className="stat-input-row">
-              <StatCard
-                label="Age"
-                value={age}
-                onChange={setAge}
-                unit="yrs"
-                min={13} max={100}
-                placeholder="25"
-              />
+            <div className="drum-row">
+              <DrumPicker label="Age" value={age} onChange={setAge}
+                min={13} max={100} unit="yrs" />
 
               {unitSystem === 'imperial' ? (
                 <>
-                  <StatCard
-                    label="Feet"
-                    value={heightFt}
-                    onChange={setHeightFt}
-                    unit="ft"
-                    min={3} max={8}
-                    placeholder="5"
-                  />
-                  <StatCard
-                    label="Inches"
-                    value={heightInPart}
-                    onChange={setHeightInPart}
-                    unit="in"
-                    min={0} max={11}
-                    placeholder="10"
-                  />
+                  <DrumPicker label="Feet" value={heightFt} onChange={setHeightFt}
+                    min={3} max={8} unit="ft" />
+                  <DrumPicker label="Inches" value={heightIn} onChange={setHeightIn}
+                    min={0} max={11} unit="in" />
                 </>
               ) : (
-                <StatCard
-                  label="Height"
-                  value={heightCm}
-                  onChange={setHeightCm}
-                  unit="cm"
-                  min={120} max={250}
-                  placeholder="178"
-                  wide
-                />
+                <DrumPicker label="Height" value={heightCm} onChange={setHeightCm}
+                  min={140} max={230} unit="cm" wide />
               )}
 
-              <StatCard
+              <DrumPicker
                 label="Weight"
-                value={weight}
-                onChange={setWeight}
+                value={weightVal}
+                onChange={setWeightVal}
+                min={unitSystem === 'imperial' ? 80 : 30}
+                max={unitSystem === 'imperial' ? 500 : 230}
                 unit={unitSystem === 'imperial' ? 'lbs' : 'kg'}
-                min={unitSystem === 'imperial' ? 66 : 30}
-                max={unitSystem === 'imperial' ? 660 : 300}
-                placeholder={unitSystem === 'imperial' ? '175' : '80'}
               />
             </div>
 
-            {/* ── Activity level ── */}
+            {/* Activity level */}
             <p className="onboarding-label">Activity Level</p>
             <div className="activity-list">
               {ACTIVITY_LEVELS.map(a => (
@@ -317,36 +368,26 @@ export default function Onboarding() {
                     <span className="activity-label">{a.label}</span>
                     <span className="activity-desc">{a.desc}</span>
                   </div>
-                  {activity === a.id && (
-                    <span className="activity-check">✓</span>
-                  )}
+                  {activity === a.id && <span className="activity-check">✓</span>}
                 </button>
               ))}
             </div>
 
             <div className="onboarding-nav">
               <button className="btn btn-ghost" onClick={goBack}>← Back</button>
-              <button
-                className="btn btn-primary"
-                disabled={!statsValid}
-                onClick={handleStatsNext}
-              >
-                Calculate →
-              </button>
+              <button className="btn btn-primary" onClick={handleStatsNext}>Calculate →</button>
             </div>
           </div>
         )}
 
-        {/* ══════════════════════════════════════════
-            STEP 3 — Macro Targets
-        ══════════════════════════════════════════ */}
+        {/* ══ STEP 3 — Macro Targets ══ */}
         {step === 3 && macros && (
           <div className="onboarding-step">
             <div className="onboarding-emoji">🎯</div>
             <h1>Your Daily Targets</h1>
             <p className="onboarding-sub">
-              Based on your stats and goal, here are your personalized targets.
-              You can always adjust these later in Goals.
+              Based on your stats and goal. Adjust if needed — you can always
+              change these later in Goals.
             </p>
 
             <div className="macro-targets-grid">
@@ -369,37 +410,20 @@ export default function Onboarding() {
             </div>
 
             <div className="onboarding-adjust">
-              <p className="onboarding-label">Adjust if needed:</p>
+              <p className="onboarding-label">Fine-tune if needed:</p>
               <div className="stat-input-row" style={{ flexWrap: 'wrap' }}>
-                <StatCard
-                  label="Calories"
-                  value={macros.calories}
-                  onChange={v => setMacros(m => ({ ...m, calories: parseInt(v) || 0 }))}
-                  unit="kcal"
-                  min={1000} max={6000} step={50}
-                  wide
-                />
-                <StatCard
-                  label="Protein"
-                  value={macros.protein}
-                  onChange={v => setMacros(m => ({ ...m, protein: parseInt(v) || 0 }))}
-                  unit="g"
-                  min={50} max={400}
-                />
-                <StatCard
-                  label="Carbs"
-                  value={macros.carbs}
-                  onChange={v => setMacros(m => ({ ...m, carbs: parseInt(v) || 0 }))}
-                  unit="g"
-                  min={20} max={800}
-                />
-                <StatCard
-                  label="Fat"
-                  value={macros.fat}
-                  onChange={v => setMacros(m => ({ ...m, fat: parseInt(v) || 0 }))}
-                  unit="g"
-                  min={20} max={300}
-                />
+                <StatCard label="Calories" value={macros.calories}
+                  onChange={v => setMacros(m => ({ ...m, calories: parseInt(v)||0 }))}
+                  unit="kcal" min={1000} max={6000} step={50} wide />
+                <StatCard label="Protein" value={macros.protein}
+                  onChange={v => setMacros(m => ({ ...m, protein: parseInt(v)||0 }))}
+                  unit="g" min={50} max={400} />
+                <StatCard label="Carbs" value={macros.carbs}
+                  onChange={v => setMacros(m => ({ ...m, carbs: parseInt(v)||0 }))}
+                  unit="g" min={20} max={800} />
+                <StatCard label="Fat" value={macros.fat}
+                  onChange={v => setMacros(m => ({ ...m, fat: parseInt(v)||0 }))}
+                  unit="g" min={20} max={300} />
               </div>
             </div>
 
@@ -410,9 +434,7 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════
-            STEP 4 — All Set
-        ══════════════════════════════════════════ */}
+        {/* ══ STEP 4 — All Set ══ */}
         {step === 4 && (
           <div className="onboarding-step onboarding-final">
             <div className="onboarding-emoji final-emoji">🚀</div>
@@ -427,11 +449,7 @@ export default function Onboarding() {
               <div className="final-check">✅ Protein target: <strong>{macros?.protein}g</strong></div>
               <div className="final-check">✅ Starting weight: <strong>{weightDisplay}</strong></div>
             </div>
-            <button
-              className="btn btn-primary onboarding-next"
-              onClick={handleFinish}
-              disabled={saving}
-            >
+            <button className="btn btn-primary onboarding-next" onClick={handleFinish} disabled={saving}>
               {saving ? 'Saving…' : 'Go to Dashboard 🎉'}
             </button>
           </div>
