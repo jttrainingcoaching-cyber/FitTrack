@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
@@ -149,8 +148,11 @@ function StatCard({ label, value, onChange, unit, min, max, step = 1, wide }) {
         className="sic-value"
         type="number"
         inputMode="numeric"
-        value={value}
-        onChange={e => onChange(e.target.value)}
+        value={value === 0 ? '' : value}
+        onChange={e => {
+          const raw = e.target.value;
+          onChange(raw === '' ? 0 : parseInt(raw, 10) || 0);
+        }}
         min={min}
         max={max}
         step={step}
@@ -164,7 +166,6 @@ function StatCard({ label, value, onChange, unit, min, max, step = 1, wide }) {
 export default function Onboarding() {
   const { user, login } = useAuth();
   const { addToast }    = useToast();
-  const navigate        = useNavigate();
 
   const [step, setStep]     = useState(1);
   const [saving, setSaving] = useState(false);
@@ -222,7 +223,8 @@ export default function Onboarding() {
     try {
       await api.put('/profile', {
         gender,
-        height_cm:      Math.round(getHeightCmForProfile() * 10) / 10,
+        height_in:      Math.round(getHeightInTotal()),
+        unit_system:    unitSystem,
         fitness_goal:   goal,
         activity_level: activity,
       });
@@ -240,8 +242,9 @@ export default function Onboarding() {
         workout_days_per_week: 4,
       });
       await api.post('/auth/complete-onboarding');
+      // Update user context — the App.jsx route guard will redirect to / automatically
+      // once it sees onboarding_complete: 1 (no manual navigate needed; avoids race)
       login({ ...user, onboarding_complete: 1 });
-      navigate('/');
     } catch (err) {
       console.error('Onboarding finish error:', err);
       addToast('Something went wrong saving your profile. Please try again.', 'error');
@@ -334,9 +337,9 @@ export default function Onboarding() {
 
               {unitSystem === 'imperial' ? (
                 <>
-                  <DrumPicker label="Feet" value={heightFt} onChange={setHeightFt}
+                  <DrumPicker label="Height" value={heightFt} onChange={setHeightFt}
                     min={3} max={8} unit="ft" />
-                  <DrumPicker label="Inches" value={heightIn} onChange={setHeightIn}
+                  <DrumPicker label="Height" value={heightIn} onChange={setHeightIn}
                     min={0} max={11} unit="in" />
                 </>
               ) : (
