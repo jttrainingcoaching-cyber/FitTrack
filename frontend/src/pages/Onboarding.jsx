@@ -100,7 +100,7 @@ function DrumPicker({ value, onChange, min, max, step = 1, label, unit, wide }) 
 
   return (
     <div className={`drum-wrap${wide ? ' wide' : ''}`}>
-      <div className="drum-label">{label}</div>
+      {label && <div className="drum-label">{label}</div>}
       <div className="drum-outer">
         {/* Center highlight box */}
         <div className="drum-selection" />
@@ -336,12 +336,15 @@ export default function Onboarding() {
                 min={13} max={100} unit="yrs" />
 
               {unitSystem === 'imperial' ? (
-                <>
-                  <DrumPicker label="Height" value={heightFt} onChange={setHeightFt}
-                    min={3} max={8} unit="ft" />
-                  <DrumPicker label="Height" value={heightIn} onChange={setHeightIn}
-                    min={0} max={11} unit="in" />
-                </>
+                <div className="drum-height-group">
+                  <div className="drum-label">Height</div>
+                  <div className="drum-height-inner">
+                    <DrumPicker value={heightFt} onChange={setHeightFt}
+                      min={3} max={8} unit="ft" />
+                    <DrumPicker value={heightIn} onChange={setHeightIn}
+                      min={0} max={11} unit="in" />
+                  </div>
+                </div>
               ) : (
                 <DrumPicker label="Height" value={heightCm} onChange={setHeightCm}
                   min={140} max={230} unit="cm" wide />
