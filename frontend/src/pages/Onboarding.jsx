@@ -220,7 +220,9 @@ export default function Onboarding() {
 
   const handleFinish = async () => {
     setSaving(true);
+    let step = 'profile';
     try {
+      step = 'profile';
       await api.put('/profile', {
         gender,
         height_in:      Math.round(getHeightInTotal()),
@@ -228,26 +230,30 @@ export default function Onboarding() {
         fitness_goal:   goal,
         activity_level: activity,
       });
+      step = 'bodyweight';
       await api.post('/bodyweight', {
         weight: Math.round(getWeightLbs() * 10) / 10,
         date:   new Date().toISOString().split('T')[0],
       });
+      step = 'goals';
       await api.put('/goals', {
-        calorie_goal:          macros.calories,
-        protein_goal:          macros.protein,
-        carbs_goal:            macros.carbs,
-        fat_goal:              macros.fat,
+        calorie_goal:          Number(macros.calories) || 2000,
+        protein_goal:          Number(macros.protein)  || 150,
+        carbs_goal:            Number(macros.carbs)    || 250,
+        fat_goal:              Number(macros.fat)      || 65,
         steps_goal:            10000,
         water_goal_oz:         64,
         workout_days_per_week: 4,
       });
+      step = 'complete-onboarding';
       await api.post('/auth/complete-onboarding');
       // Update user context — the App.jsx route guard will redirect to / automatically
       // once it sees onboarding_complete: 1 (no manual navigate needed; avoids race)
       login({ ...user, onboarding_complete: 1 });
     } catch (err) {
-      console.error('Onboarding finish error:', err);
-      addToast('Something went wrong saving your profile. Please try again.', 'error');
+      const serverMsg = err.response?.data?.error || err.message || 'Unknown error';
+      console.error(`Onboarding finish error at step "${step}":`, err.response?.data || err);
+      addToast(`Save failed at ${step}: ${serverMsg}`, 'error');
     }
     setSaving(false);
   };
