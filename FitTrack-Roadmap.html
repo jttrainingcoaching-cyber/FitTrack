@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FitTrack — Interactive Roadmap</title>
+<style>
+  :root{
+    --bg:#0b0b10; --card:#16161f; --elev:#1f1f2b; --border:#2a2a3a;
+    --text:#eef0f8; --muted:#7a7a90; --indigo:#6366f1; --violet:#8b5cf6;
+    --green:#22c55e; --yellow:#eab308; --red:#ef4444; --cyan:#06b6d4; --orange:#f97316;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--text);font-family:-apple-system,Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body{padding:24px;max-width:1400px;margin:0 auto}
+  header{display:flex;flex-direction:column;gap:4px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+  h1{font-size:2rem;font-weight:800;letter-spacing:-0.02em}
+  h1 span{color:var(--indigo)}
+  header p{color:var(--muted);font-size:0.95rem}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+  .stat-val{font-size:1.8rem;font-weight:800;letter-spacing:-0.02em}
+  .stat-lbl{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);font-weight:700;margin-top:4px}
+  .stat.done .stat-val{color:var(--green)}
+  .stat.progress .stat-val{color:var(--yellow)}
+  .stat.pending .stat-val{color:var(--muted)}
+  .stat.total .stat-val{color:var(--indigo)}
+
+  .tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:16px;overflow-x:auto}
+  .tab{flex:1;min-width:120px;padding:10px 14px;border:0;background:transparent;color:var(--muted);font-weight:600;font-size:0.85rem;border-radius:8px;cursor:pointer;transition:.15s;white-space:nowrap}
+  .tab:hover{color:var(--text)}
+  .tab.active{background:var(--indigo);color:#fff}
+
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .filter{padding:6px 12px;border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:999px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:.15s}
+  .filter:hover{color:var(--text)}
+  .filter.active{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+  .task{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;transition:.15s;position:relative;overflow:hidden}
+  .task::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--indigo)}
+  .task.p1::before{background:var(--red)}
+  .task.p2::before{background:var(--orange)}
+  .task.p3::before{background:var(--yellow)}
+  .task.p4::before{background:var(--cyan)}
+  .task.done{opacity:0.55}
+  .task.done .task-title{text-decoration:line-through;color:var(--muted)}
+  .task:hover{transform:translateY(-2px);border-color:var(--indigo)}
+
+  .task-top{display:flex;align-items:center;gap:10px;justify-content:space-between}
+  .task-title{font-size:0.98rem;font-weight:700;flex:1;line-height:1.3}
+  .badges{display:flex;gap:5px;flex-wrap:wrap}
+  .badge{padding:3px 8px;border-radius:999px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
+  .b-p1{background:rgba(239,68,68,0.15);color:var(--red)}
+  .b-p2{background:rgba(249,115,22,0.15);color:var(--orange)}
+  .b-p3{background:rgba(234,179,8,0.15);color:var(--yellow)}
+  .b-p4{background:rgba(6,182,212,0.15);color:var(--cyan)}
+  .b-cat{background:var(--elev);color:var(--muted)}
+  .b-eff{background:rgba(99,102,241,0.15);color:var(--indigo)}
+  .b-impact{background:rgba(139,92,246,0.15);color:var(--violet)}
+  .b-done{background:rgba(34,197,94,0.15);color:var(--green)}
+  .b-prog{background:rgba(234,179,8,0.15);color:var(--yellow)}
+  .b-pending{background:var(--elev);color:var(--muted)}
+
+  .task-desc{font-size:0.82rem;color:var(--muted);line-height:1.45}
+  .task-meta{display:flex;gap:10px;font-size:0.72rem;color:var(--muted);margin-top:auto;flex-wrap:wrap}
+  .task-meta b{color:var(--text);font-weight:600}
+  .check{width:22px;height:22px;border:2px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;flex-shrink:0}
+  .check:hover{border-color:var(--indigo)}
+  .check.checked{background:var(--green);border-color:var(--green)}
+  .check.checked::after{content:'✓';color:#fff;font-weight:800;font-size:14px}
+
+  .section-title{margin:24px 0 10px;font-size:1.1rem;font-weight:700;color:var(--text)}
+  .progress-bar{height:6px;background:var(--elev);border-radius:3px;overflow:hidden;margin-bottom:20px}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--indigo),var(--violet));transition:width .4s}
+
+  footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:0.8rem;text-align:center}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--elev);font-size:0.7rem;margin:0 3px}
+
+  @media (max-width:640px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .grid{grid-template-columns:1fr}
+    h1{font-size:1.5rem}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FitTrack <span>Roadmap</span></h1>
+  <p>Interactive task manager for everything to build, fix, and experiment with. Click a task to mark it complete — state saves locally.</p>
+</header>
+
+<div class="stats">
+  <div class="stat total"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">Total Tasks</div></div>
+  <div class="stat done"><div class="stat-val" id="s-done">0</div><div class="stat-lbl">Completed</div></div>
+  <div class="stat progress"><div class="stat-val" id="s-prog">0</div><div class="stat-lbl">In Progress</div></div>
+  <div class="stat pending"><div class="stat-val" id="s-pending">0</div><div class="stat-lbl">Remaining</div></div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="bar"></div></div>
+
+<div class="tabs" id="tabs"></div>
+<div class="filters" id="filters"></div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  Research-driven • Priority color code: <span class="pill" style="color:var(--red)">P1 Critical</span><span class="pill" style="color:var(--orange)">P2 High</span><span class="pill" style="color:var(--yellow)">P3 Medium</span><span class="pill" style="color:var(--cyan)">P4 Nice-to-have</span>
+  <br><br>State persists in browser localStorage. To export, open DevTools → Application → Local Storage.
+</footer>
+
+<script>
+/* ===== TASK DATA ===== */
+const TASKS = [
+  // ── FOUNDATIONAL FIXES (already mostly done, but listed for clarity) ──
+  {id:'fix-onboarding',    cat:'Core App',   pri:1, eff:'S', impact:'High', status:'done',
+   title:'Fix onboarding save crash (undefined SQLite bindings)',
+   desc:'Guard profile/goals routes against undefined values that node:sqlite refuses to bind. Surface real server errors in the toast.'},
+  {id:'fix-go-to-dash',    cat:'Core App',   pri:1, eff:'S', impact:'High', status:'done',
+   title:'Fix "Go to dashboard" button after onboarding',
+   desc:'Ensure the route guard actually redirects once onboarding_complete flips.'},
+  {id:'drum-picker',       cat:'UX',         pri:2, eff:'M', impact:'High', status:'done',
+   title:'iOS-style drum picker for measurements',
+   desc:'Scroll-snap wheels for age, height (ft+in or cm), weight. Swipe or tap to pick.'},
+  {id:'unit-toggle',       cat:'UX',         pri:2, eff:'S', impact:'Medium', status:'done',
+   title:'Imperial / Metric toggle with auto-conversion',
+   desc:'Switching systems converts current values cleanly. Preserve user choice.'},
+  {id:'skeletons',         cat:'UX',         pri:3, eff:'S', impact:'Medium', status:'done',
+   title:'Skeleton loaders across all data-loading views',
+   desc:'Shimmer animation so pages never flash empty.'},
+  {id:'pr-detection',      cat:'Core App',   pri:2, eff:'M', impact:'High', status:'done',
+   title:'PR detection on workout save (Epley 1RM)',
+   desc:'Server returns newPRs[]. UI shows celebration toast. PRs displayed on Progress page.'},
+  {id:'programs-preview',  cat:'Core App',   pri:3, eff:'S', impact:'Medium', status:'done',
+   title:'Programs: on-demand week-1 schedule preview',
+   desc:'GET /programs/:id cache. Shows loading state while fetching.'},
+
+  // ── P1: MUST-HAVE for retention ──
+  {id:'streak-system',     cat:'Gamification', pri:1, eff:'M', impact:'High', status:'pending',
+   title:'Streak system with Streak Freeze (🔥)',
+   desc:'Daily activity streak. +23% retention per research. Must include "freeze" tokens — missing one day breaks the streak for 63% of users without them.'},
+  {id:'quick-add-fab',     cat:'UX',           pri:1, eff:'S', impact:'High', status:'pending',
+   title:'Floating Quick-Add button (Water/Meal/Workout/Weight)',
+   desc:'Single tap → radial menu → 2-second logs. Kills #2 abandonment cause (cumbersome data entry).'},
+  {id:'last-value-default',cat:'UX',           pri:1, eff:'S', impact:'High', status:'pending',
+   title:'Default to last value in weight/reps inputs',
+   desc:'When logging sets, pre-fill weight + reps from last session\'s same exercise. Huge friction reducer.'},
+  {id:'rest-timer',        cat:'Core App',     pri:1, eff:'M', impact:'High', status:'pending',
+   title:'Auto-starting rest timer between sets',
+   desc:'After a set is logged, a full-screen (dismissible) rest timer starts. Common in Hevy — missing here.'},
+  {id:'landing-page',      cat:'Marketing',    pri:1, eff:'L', impact:'High', status:'pending',
+   title:'Public marketing landing page',
+   desc:'/ (unauthenticated) should sell the app. Currently nothing exists. Critical for acquiring users outside Jason\'s direct network.'},
+  {id:'onboarding-skip',   cat:'UX',           pri:1, eff:'S', impact:'Medium', status:'pending',
+   title:'"Skip onboarding, explore app" escape hatch',
+   desc:'UXCam research: lengthy required onboarding causes deletions. Let users explore first, prompt for details later.'},
+
+  // ── P2: HIGH-VALUE growth ──
+  {id:'ai-coach',          cat:'AI',           pri:2, eff:'L', impact:'High', status:'pending',
+   title:'AI daily check-in + program adjustments',
+   desc:'Claude API-powered coach: analyzes recent workouts, nutrition, sleep, and suggests next action. Can use prompt caching to keep costs low.'},
+  {id:'photo-food-log',    cat:'Nutrition',    pri:2, eff:'M', impact:'High', status:'pending',
+   title:'Photo-based food logging (vision AI)',
+   desc:'Snap a photo, AI identifies the meal + estimates macros. 3 sec vs 30-60 sec of search. Top Foodnoms feature.'},
+  {id:'form-check',        cat:'AI',           pri:2, eff:'L', impact:'High', status:'pending',
+   title:'Upload lift video → AI form check score',
+   desc:'Gymscore-style 0-100 score per movement. Huge differentiator. Claude vision or specialized model.'},
+  {id:'adaptive-programs', cat:'AI',           pri:2, eff:'L', impact:'High', status:'pending',
+   title:'Adaptive program scheduling (Fitbod-style)',
+   desc:'Instead of fixed programs, auto-generate next workout based on recovery, performance, and muscle fatigue.'},
+  {id:'community-feed',    cat:'Social',       pri:2, eff:'L', impact:'High', status:'pending',
+   title:'Activity feed with kudos & comments',
+   desc:'Friends can see workouts, cheer PRs. Strava/Hevy model. #1 lever in retention research.'},
+  {id:'challenges',        cat:'Gamification', pri:2, eff:'M', impact:'Medium', status:'pending',
+   title:'Weekly challenges (join → compete → win badge)',
+   desc:'Wearables-as-input model: heart rate / volume / frequency quests. Keeps workouts novel.'},
+  {id:'wearable-sync',     cat:'Integration',  pri:2, eff:'L', impact:'High', status:'pending',
+   title:'Apple Health / Google Fit integration',
+   desc:'Auto-pull steps, heart rate, sleep, workouts. Eliminates double-logging.'},
+  {id:'between-set-charts',cat:'UX',           pri:2, eff:'S', impact:'Medium', status:'pending',
+   title:'Inline strength-progression mini-chart in logger',
+   desc:'While logging bench, show a tiny spark line of last 10 bench sessions. "You\'re +5lb vs last week" callout.'},
+
+  // ── P3: MEDIUM priority improvements ──
+  {id:'redesign-tokens',   cat:'Design',       pri:3, eff:'M', impact:'Medium', status:'pending',
+   title:'Apply new design tokens from brief',
+   desc:'Deepen background contrast, adopt refined color palette, tabular-nums on stats, motion system.'},
+  {id:'haptic-feedback',   cat:'UX',           pri:3, eff:'S', impact:'Medium', status:'pending',
+   title:'Haptic feedback on set complete / PR hit',
+   desc:'Vibration API on mobile. Subtle but makes logging feel premium.'},
+  {id:'pr-celebration',    cat:'UX',           pri:3, eff:'S', impact:'Medium', status:'pending',
+   title:'Confetti + trophy animation on new PR',
+   desc:'Research: dopamine reward tied to visible progress drives retention.'},
+  {id:'before-after',      cat:'Progress',     pri:3, eff:'M', impact:'Medium', status:'pending',
+   title:'Before/after photo comparison slider',
+   desc:'Drag slider across two photos to see change. Photos route exists, comparison tool missing.'},
+  {id:'body-measurements', cat:'Progress',     pri:3, eff:'S', impact:'Medium', status:'pending',
+   title:'Expand body measurements tracker UI',
+   desc:'Waist/chest/arms/hips/thighs. Backend exists (body_stats). UI is basic — make it first-class.'},
+  {id:'exercise-library',  cat:'Core App',     pri:3, eff:'M', impact:'Medium', status:'pending',
+   title:'Exercise library with video demos',
+   desc:'Browse all tracked exercises, see form video, muscle group, equipment needed.'},
+  {id:'meal-templates',    cat:'Nutrition',    pri:3, eff:'S', impact:'Medium', status:'pending',
+   title:'Save meals as templates / favorites',
+   desc:'One-tap re-log of frequent meals. Backend preset table exists — need better UI surface.'},
+  {id:'water-reminders',   cat:'Notifications',pri:3, eff:'M', impact:'Medium', status:'pending',
+   title:'Smart water intake reminders',
+   desc:'Push notifications at intervals based on goal + current intake.'},
+  {id:'workout-share',     cat:'Social',       pri:3, eff:'S', impact:'Low',    status:'pending',
+   title:'Share workout summary card (image export)',
+   desc:'Generate a styled "I just crushed X volume" card. Shareable to IG/Twitter. Free marketing.'},
+  {id:'dark-mode-polish',  cat:'Design',       pri:3, eff:'S', impact:'Low',    status:'pending',
+   title:'Polish light theme contrast + recharts colors',
+   desc:'Light theme needs a pass to match dark quality.'},
+
+  // ── P4: EXPERIMENTAL / NICE-TO-HAVE ──
+  {id:'recovery-score',    cat:'AI',           pri:4, eff:'M', impact:'Medium', status:'pending',
+   title:'Daily recovery score (HRV + sleep + volume)',
+   desc:'WHOOP-style readiness score. Requires wearable integration first.'},
+  {id:'voice-logging',     cat:'UX',           pri:4, eff:'M', impact:'Medium', status:'pending',
+   title:'Voice-guided workout logging',
+   desc:'"Bench, 185, 5 reps" → logged. Hands-free. Research: voice AI trainers see 40-60% higher completion.'},
+  {id:'nutrition-ai',      cat:'AI',           pri:4, eff:'M', impact:'Medium', status:'pending',
+   title:'AI nutrition coach — macro-targeted meal suggestions',
+   desc:'"I have 800 cal / 40g protein left, suggest dinner." Claude API with prompt caching.'},
+  {id:'group-challenges',  cat:'Social',       pri:4, eff:'M', impact:'Medium', status:'pending',
+   title:'Private group challenges (coach → client cohort)',
+   desc:'Jason can create a 30-day challenge and invite clients. Leaderboard + check-ins.'},
+  {id:'wordpress-blog',    cat:'Marketing',    pri:4, eff:'M', impact:'Low',    status:'pending',
+   title:'Blog / content hub for SEO',
+   desc:'Articles on programming, nutrition, recovery. Long-term organic traffic.'},
+  {id:'referral-system',   cat:'Growth',       pri:4, eff:'M', impact:'Medium', status:'pending',
+   title:'Referral rewards (invite friend → both get Pro month)',
+   desc:'Classic viral loop for consumer apps.'},
+
+  // ── DEV EFFICIENCY / INFRASTRUCTURE ──
+  {id:'claude-agents',     cat:'Dev Workflow', pri:2, eff:'S', impact:'High', status:'pending',
+   title:'Set up Claude Code agents for repetitive dev tasks',
+   desc:'Custom agents for: (1) testing endpoints after backend changes, (2) scanning for accessibility issues, (3) generating component variants from design brief.'},
+  {id:'install-skills',    cat:'Dev Workflow', pri:2, eff:'S', impact:'Medium', status:'pending',
+   title:'Install useful Claude Code skills',
+   desc:'design:design-system, engineering:code-review, engineering:deploy-checklist, design:accessibility-review. Each reduces round-trips on their domain.'},
+  {id:'test-suite',        cat:'Dev Workflow', pri:3, eff:'L', impact:'Medium', status:'pending',
+   title:'Playwright smoke test for critical paths',
+   desc:'Signup → onboarding → log workout → log meal → dashboard. Run on every Railway deploy.'},
+  {id:'error-monitoring',  cat:'Dev Workflow', pri:3, eff:'S', impact:'Medium', status:'pending',
+   title:'Sentry or equivalent for production error tracking',
+   desc:'Real user errors surface immediately. Free tier adequate for current scale.'},
+  {id:'analytics',         cat:'Dev Workflow', pri:3, eff:'S', impact:'Medium', status:'pending',
+   title:'Add privacy-friendly analytics (Plausible/Umami)',
+   desc:'Track activation funnel, retention cohorts, feature usage. Guides roadmap.'},
+  {id:'ci-cd-tests',       cat:'Dev Workflow', pri:4, eff:'M', impact:'Low',    status:'pending',
+   title:'Add GitHub Actions CI for linting + tests',
+   desc:'Run before Railway deploys to catch regressions early.'},
+];
+
+const CATEGORIES = ['All', ...new Set(TASKS.map(t => t.cat))];
+const PRIORITIES = [
+  {label:'All priorities', val:null},
+  {label:'P1 Critical', val:1},
+  {label:'P2 High', val:2},
+  {label:'P3 Medium', val:3},
+  {label:'P4 Nice-to-have', val:4},
+];
+const STATUSES = [
+  {label:'All statuses', val:null},
+  {label:'Pending', val:'pending'},
+  {label:'In progress', val:'progress'},
+  {label:'Done', val:'done'},
+];
+
+/* ===== STATE ===== */
+const STORE_KEY = 'fittrack-roadmap-v1';
+const override = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+TASKS.forEach(t => { if (override[t.id]) t.status = override[t.id]; });
+
+let activeCat = 'All';
+let activePri = null;
+let activeStatus = null;
+
+/* ===== RENDER ===== */
+function render(){
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = CATEGORIES.map(c =>
+    `<button class="tab ${c===activeCat?'active':''}" data-cat="${c}">${c}</button>`
+  ).join('');
+  tabs.querySelectorAll('.tab').forEach(b => b.onclick = () => { activeCat = b.dataset.cat; render(); });
+
+  const fil = document.getElementById('filters');
+  const pri = PRIORITIES.map(p =>
+    `<button class="filter ${activePri===p.val?'active':''}" data-type="pri" data-val="${p.val}">${p.label}</button>`
+  ).join('');
+  const sta = STATUSES.map(s =>
+    `<button class="filter ${activeStatus===s.val?'active':''}" data-type="status" data-val="${s.val}">${s.label}</button>`
+  ).join('');
+  fil.innerHTML = pri + '<span style="width:12px"></span>' + sta;
+  fil.querySelectorAll('.filter').forEach(b => b.onclick = () => {
+    const v = b.dataset.val === 'null' ? null : (b.dataset.type==='pri' ? +b.dataset.val : b.dataset.val);
+    if (b.dataset.type === 'pri') activePri = v; else activeStatus = v;
+    render();
+  });
+
+  let list = TASKS.slice();
+  if (activeCat !== 'All') list = list.filter(t => t.cat === activeCat);
+  if (activePri !== null) list = list.filter(t => t.pri === activePri);
+  if (activeStatus !== null) list = list.filter(t => t.status === activeStatus);
+  list.sort((a,b) => a.pri - b.pri || a.cat.localeCompare(b.cat));
+
+  document.getElementById('grid').innerHTML = list.map(t => `
+    <div class="task p${t.pri} ${t.status}" data-id="${t.id}">
+      <div class="task-top">
+        <div class="check ${t.status==='done'?'checked':''}" data-id="${t.id}"></div>
+        <div class="task-title">${t.title}</div>
+      </div>
+      <div class="badges">
+        <span class="badge b-p${t.pri}">P${t.pri}</span>
+        <span class="badge b-cat">${t.cat}</span>
+        <span class="badge b-eff">${t.eff} effort</span>
+        <span class="badge b-impact">${t.impact} impact</span>
+        <span class="badge ${t.status==='done'?'b-done':t.status==='progress'?'b-prog':'b-pending'}">${t.status}</span>
+      </div>
+      <div class="task-desc">${t.desc}</div>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.check').forEach(el => el.onclick = e => {
+    e.stopPropagation();
+    const t = TASKS.find(x => x.id === el.dataset.id);
+    t.status = t.status === 'done' ? 'pending' : 'done';
+    override[t.id] = t.status;
+    localStorage.setItem(STORE_KEY, JSON.stringify(override));
+    render();
+  });
+
+  // Stats
+  const total = TASKS.length;
+  const done  = TASKS.filter(t => t.status === 'done').length;
+  const prog  = TASKS.filter(t => t.status === 'progress').length;
+  const pend  = TASKS.filter(t => t.status === 'pending').length;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-done').textContent  = done;
+  document.getElementById('s-prog').textContent  = prog;
+  document.getElementById('s-pending').textContent = pend;
+  document.getElementById('bar').style.width = Math.round((done/total)*100) + '%';
+}
+
+render();
+</script>
+
+</body>
+</html>

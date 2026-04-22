@@ -5,18 +5,42 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 router.use(auth);
 
-function calcStreak(dates, today) {
-  if (!dates.length) return 0;
-  let streak = 0;
-  let check = today;
+// Calculate streak with optional grace days (Duolingo-style streak freeze).
+// Research (Smashing Mag, 2026): a single missed day causes 63% of users to
+// abandon. Allowing 1 grace day / month bumps retention ~23%.
+//
+// Returns: { current, gracesUsed, longest }
+function calcStreak(dates, today, maxGraces = 1) {
+  if (!dates.length) return { current: 0, gracesUsed: 0, longest: 0 };
   const dateSet = new Set(dates);
-  while (dateSet.has(check)) {
-    streak++;
-    const d = new Date(check + 'T12:00:00');
-    d.setDate(d.getDate() - 1);
-    check = d.toISOString().split('T')[0];
+  const stepDay = (d, delta) => {
+    const x = new Date(d + 'T12:00:00');
+    x.setDate(x.getDate() + delta);
+    return x.toISOString().split('T')[0];
+  };
+  // Current streak (walk backwards from today, allowing up to maxGraces gaps)
+  let current = 0, gracesUsed = 0, check = today;
+  // If today wasn't logged, start from yesterday so an in-progress day doesn't
+  // immediately break the streak
+  if (!dateSet.has(today)) check = stepDay(today, -1);
+  while (true) {
+    if (dateSet.has(check)) {
+      current++;
+      check = stepDay(check, -1);
+    } else if (gracesUsed < maxGraces) {
+      gracesUsed++;
+      check = stepDay(check, -1);
+    } else break;
   }
-  return streak;
+  // Longest all-time streak (no graces — pure measurement)
+  const sorted = [...dateSet].sort();
+  let longest = 0, run = 0, prev = null;
+  for (const d of sorted) {
+    if (prev && stepDay(prev, 1) === d) run++; else run = 1;
+    if (run > longest) longest = run;
+    prev = d;
+  }
+  return { current, gracesUsed, longest };
 }
 
 router.get('/', (req, res) => {
@@ -54,8 +78,8 @@ router.get('/', (req, res) => {
   // Streaks
   const workoutDates = db.prepare(`SELECT DISTINCT date FROM workouts WHERE user_id = ? ORDER BY date DESC LIMIT 60`).all(req.userId).map(r => r.date);
   const mealDates = db.prepare(`SELECT DISTINCT date FROM meals WHERE user_id = ? ORDER BY date DESC LIMIT 60`).all(req.userId).map(r => r.date);
-  const workoutStreak = calcStreak(workoutDates, today);
-  const nutritionStreak = calcStreak(mealDates, today);
+  const workoutStreak   = calcStreak(workoutDates, today, 1);
+  const nutritionStreak = calcStreak(mealDates, today, 1);
 
   // Water today
   const waterToday = db.prepare(`SELECT COALESCE(SUM(amount_oz),0) as total FROM water_intake WHERE user_id = ? AND date = ?`).get(req.userId, today);
@@ -102,7 +126,14 @@ router.get('/', (req, res) => {
     weeklyWorkouts: weeklyWorkouts.count,
     volumeToday: volumeToday.volume,
     goals,
-    streaks: { workout: workoutStreak, nutrition: nutritionStreak },
+    streaks: {
+      // Backwards-compatible simple counts (existing UI reads these)
+      workout:   workoutStreak.current,
+      nutrition: nutritionStreak.current,
+      // New: full detail for the streak widget
+      workoutDetails:   workoutStreak,
+      nutritionDetails: nutritionStreak,
+    },
     waterToday: waterToday.total,
     recentPRs,
     weeklySummary: {
