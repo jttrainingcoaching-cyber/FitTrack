@@ -290,6 +290,29 @@ export default function WorkoutLogger() {
 
   const togglePanel = (panel) => setActivePanel(p => p === panel ? null : panel);
 
+  // Look up the most recent time this exercise was logged so we can pre-fill
+  // weight/reps. Research shows default-to-last-value cuts logging friction
+  // dramatically — the #2 cause of app abandonment is cumbersome data entry.
+  const findLastLog = (exName) => {
+    if (!exName) return null;
+    const normalized = exName.trim().toLowerCase();
+    // `workouts` is sorted DESC by date (from API). Walk through to find the
+    // most recent exercise matching by name.
+    for (const w of workouts) {
+      const exs = w.exercises || [];
+      const match = exs.find(e => (e.name || '').trim().toLowerCase() === normalized);
+      if (match && (match.weight || match.reps)) {
+        return {
+          sets:   match.sets || 3,
+          reps:   match.reps   != null ? String(match.reps)   : '',
+          weight: match.weight != null ? String(match.weight) : '',
+          date:   w.date,
+        };
+      }
+    }
+    return null;
+  };
+
   const addExercise = () => {
     if (!exForm.name.trim()) return;
     setEx(prev => [...prev, { ...exForm, _id: Date.now() }]);
@@ -299,7 +322,13 @@ export default function WorkoutLogger() {
   };
 
   const pickExercise = (exName) => {
-    setExForm(f => ({ ...f, name: exName }));
+    const last = findLastLog(exName);
+    if (last) {
+      setExForm(f => ({ ...f, name: exName, sets: last.sets, reps: last.reps, weight: last.weight }));
+      addToast(`Last: ${last.weight || '—'}lb × ${last.reps || '—'} on ${last.date}`, 'info');
+    } else {
+      setExForm(f => ({ ...f, name: exName }));
+    }
     setExInputFocused(false);
     exInputRef.current?.focus();
   };

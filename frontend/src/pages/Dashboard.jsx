@@ -34,6 +34,51 @@ function getStreakMsg(count, type) {
   return match?.msg || null;
 }
 
+// Milestones drive the "3 more days to X" copy on the streak widget.
+const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100, 200, 365];
+function nextMilestone(current) {
+  return STREAK_MILESTONES.find(m => m > current) || null;
+}
+
+// ── Streak Widget ─────────────────────────────────────────────────────────────
+// Renders a compact card showing: current streak with flame/veggie icon that
+// intensifies as streak grows, grace-day indicator ("protected by 1 grace day"),
+// longest-ever streak, and copy toward the next milestone.
+function StreakWidget({ kind, icon, label, details }) {
+  const { current, gracesUsed, longest } = details || { current: 0, gracesUsed: 0, longest: 0 };
+  if (current === 0 && longest === 0) return null;
+  const hot  = current >= 3;
+  const fire = current >= 7;
+  const next = nextMilestone(current);
+  const toNext = next ? next - current : null;
+  return (
+    <div className={`streak-widget ${kind} ${hot ? 'hot' : ''} ${fire ? 'fire' : ''}`}>
+      <div className="streak-widget-main">
+        <div className={`streak-widget-icon ${fire ? 'pulse' : ''}`}>{icon}</div>
+        <div className="streak-widget-info">
+          <div className="streak-widget-number">{current}</div>
+          <div className="streak-widget-label">{label}</div>
+        </div>
+      </div>
+      <div className="streak-widget-meta">
+        {gracesUsed > 0 && (
+          <span className="streak-meta-pill grace" title="One missed day forgiven this week — keeps your streak alive">
+            🛡️ grace used
+          </span>
+        )}
+        {longest > current && (
+          <span className="streak-meta-pill longest">Best: {longest}d</span>
+        )}
+        {toNext !== null && toNext > 0 && (
+          <span className="streak-meta-pill next">
+            {toNext === 1 ? '1 day to' : `${toNext} days to`} {next}d
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Active Program Widget ─────────────────────────────────────────────────────
 
 function ActiveProgramWidget() {
@@ -339,19 +384,21 @@ export default function Dashboard() {
       {/* Wellness check-in */}
       <WellnessCheckin />
 
-      {/* Streak chips */}
-      {(streaks.workout > 0 || streaks.nutrition > 0) && (
-        <div className="streak-row">
-          {streaks.workout > 0 && (
-            <div className={`streak-chip ${streaks.workout >= 3 ? 'hot' : ''}`}>
-              🔥 {streaks.workout} day workout streak
-            </div>
-          )}
-          {streaks.nutrition > 0 && (
-            <div className={`streak-chip ${streaks.nutrition >= 3 ? 'hot' : ''}`}>
-              ✅ {streaks.nutrition} day nutrition streak
-            </div>
-          )}
+      {/* Streak widget — shows current, grace day used, longest */}
+      {(streaks.workout > 0 || streaks.nutrition > 0 || data?.streaks?.workoutDetails?.longest > 0) && (
+        <div className="streak-widget-row">
+          <StreakWidget
+            kind="workout"
+            icon="🔥"
+            label="Workout Streak"
+            details={data?.streaks?.workoutDetails || { current: streaks.workout || 0, gracesUsed: 0, longest: streaks.workout || 0 }}
+          />
+          <StreakWidget
+            kind="nutrition"
+            icon="🥗"
+            label="Nutrition Streak"
+            details={data?.streaks?.nutritionDetails || { current: streaks.nutrition || 0, gracesUsed: 0, longest: streaks.nutrition || 0 }}
+          />
         </div>
       )}
 
